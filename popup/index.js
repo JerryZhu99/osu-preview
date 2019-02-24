@@ -9,6 +9,7 @@ const headerElement = document.getElementById('header');
 const titleElement = document.querySelector('.song-title');
 const artistElement = document.querySelector('.artist');
 const difficultyNameElement = document.getElementById('difficulty-name');
+const canvasElement = document.getElementById('canvas');
 const errorElement = document.getElementById('error');
 
 // Set after the extension initializes, used for additional error information.
@@ -40,6 +41,21 @@ function onReady([, cover]) {
   titleElement.innerText = cleanBeatmap.title;
   artistElement.innerText = cleanBeatmap.artist;
   difficultyNameElement.innerText = cleanBeatmap.version;
+
+  const circleRadius = 32 * (1 - 0.7 * (cleanBeatmap.cs - 5) / 5);
+  const ctx = canvasElement.getContext('2d');
+
+  const hitObjects = cleanBeatmap.objects;
+  const circles = hitObjects.filter(e => e.type === 1);
+
+  ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+  circles.forEach((circle) => {
+    ctx.beginPath();
+
+    ctx.arc(circle.data.pos[0] + 64, circle.data.pos[1] + 48, circleRadius, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+
 
   const audio = new Audio();
   audio.volume = 0.45;
