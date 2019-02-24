@@ -1,121 +1,43 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="utf-8">
   <link href="popup.css" rel="stylesheet">
 </head>
-<body>
-<div class="spinner"></div>
-<div class="container preloading" id="container">
-  <div class="error-message">
-    <div class="frown">:(</div>
-    <span data-t="error-occured"></span>
-    <span id="error"></span>
-  </div>
-  <div class="notification-wrapper hidden" id="notification">
-    <div class="notification">
-      <div class="message">
-        <span id="notification-version"></span> -
-        <a target="_blank" href="changelog.html" data-t="changelog"></a>
-      </div>
-      <div class="clear" id="notification-clear"><i class="material-icons">clear</i></div>
-    </div>
-  </div>
-  <div class="header" id="header">
-    <div class="gradient">
-      <div class="icon-container">
-        <button class="icon" id="open-settings">
-          <i class="material-icons">settings</i>
-        </button>
-        <a class="icon" target="_blank" href="https://github.com/oamaok/ezpp">
-          <i class="icon-other">&#xf09b;</i>
-        </a>
-      </div>
 
-      <div class="version"></div>
-      <div class="song-info">
-        <div class="song-title"></div>
-        <div class="artist"></div>
-        <div class="difficulty">
-          <div id="difficulty-name"></div>
-          <div class="difficulty-stars">
-            <i class="material-icons">star</i>
-            <span id="difficulty-stars"></span>
+<body>
+  <div class="container preloading" id="container">
+    <div class="error-message">
+      <div class="frown">:(</div>
+      <span data-t="error-occured"></span>
+      <span id="error"></span>
+    </div>
+    <div class="notification-wrapper hidden" id="notification">
+      <div class="notification">
+        <div class="message">
+          <span id="notification-version"></span> -
+          <a target="_blank" href="changelog.html" data-t="changelog"></a>
+        </div>
+        <div class="clear" id="notification-clear"><i class="material-icons">clear</i></div>
+      </div>
+    </div>
+    <div class="header" id="header">
+      <div class="gradient">
+        <div class="song-info">
+          <div class="song-title"></div>
+          <div class="artist"></div>
+          <div class="difficulty">
+            <div id="difficulty-name"></div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-  <div class="calculation-settings">
-    <div class="numerics">
-      <div class="numeric">
-        <label for="accuracy" data-t="accuracy"></label>
-        <input type="number" id="accuracy" value="100.0" min="0" max="100" step="0.1">
-      </div>
-      <div class="numeric">
-        <label for="combo">
-          <span data-t="combo"></span>
-        </label>
-        <button class="fc-reset">FC</button>
-        <input type="number" id="combo" value="" min="0" step="1">
-      </div>
-      <div class="numeric">
-        <label for="misses" data-t="misses"></label>
-        <input type="number" id="misses" value="0" min="0" step="1">
-      </div>
-    </div>
-    <div class="mods">
-      <div class="mod mod-hd">
-        <input type="checkbox" id="mod-hd" value="8">
-        <label for="mod-hd" data-t="mod-hidden"></label>
-      </div>
-      <div class="mod mod-hr">
-        <input type="checkbox" id="mod-hr" value="16">
-        <label for="mod-hr" data-t="mod-hardrock"></label>
-      </div>
-      <div class="mod mod-dt">
-        <input type="checkbox" id="mod-dt" value="64">
-        <label for="mod-dt" data-t="mod-doubletime"></label>
-      </div>
-      <div class="mod mod-fl">
-        <input type="checkbox" id="mod-fl" value="1024">
-        <label for="mod-fl" data-t="mod-flashlight"></label>
-      </div>
-      <div class="mod mod-nf">
-        <input type="checkbox" id="mod-nf" value="1">
-        <label for="mod-nf" data-t="mod-nofail"></label>
-      </div>
-      <div class="mod mod-ez">
-        <input type="checkbox" id="mod-ez" value="2">
-        <label for="mod-ez" data-t="mod-easy"></label>
-      </div>
-      <div class="mod mod-ht">
-        <input type="checkbox" id="mod-ht" value="256">
-        <label for="mod-ht" data-t="mod-halftime"></label>
-      </div>
-      <div class="mod mod-so">
-        <input type="checkbox" id="mod-so" value="4096">
-        <label for="mod-so" data-t="mod-spunout"></label>
-      </div>
+    <div class="preview">
+      <canvas id="area"></canvas>
     </div>
   </div>
-  <div class="result" id="result"></div>
-  <div class="settings" id="settings">
-    <button id="close-settings">
-      <i class="material-icons">clear</i>
-    </button>
-    <h1 data-t="settings"></h1>
-    <div class="setting">
-      <label data-t="language"></label>
-      <select id="language-selector"></select>
-    </div>
-    <div class="setting">
-      <label data-t="analytics"></label>
-      <input type="checkbox" id="analytics-toggle">
-    </div>
-    <a target="_blank" class="changelog" href="changelog.html" data-t="changelog"></a>
-  </div>
-</div>
-<script type="text/javascript" src="popup.js" crossorigin="anonymous"></script>
+  <script type="text/javascript" src="popup.js" crossorigin="anonymous"></script>
 </body>
+
 </html>
