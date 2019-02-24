@@ -12,6 +12,7 @@ const difficultyNameElement = document.getElementById('difficulty-name');
 const errorElement = document.getElementById('error');
 
 // Set after the extension initializes, used for additional error information.
+let previewTime = null;
 let cleanBeatmap = null;
 let pageInfo = {
   isOldSite: null,
@@ -39,6 +40,11 @@ function onReady([, cover]) {
   titleElement.innerText = cleanBeatmap.title;
   artistElement.innerText = cleanBeatmap.artist;
   difficultyNameElement.innerText = cleanBeatmap.version;
+
+  const audio = new Audio();
+  audio.volume = 0.45;
+  audio.src = `https://b.ppy.sh/preview/${pageInfo.beatmapSetId}.mp3`;
+  audio.play();
 }
 
 const fetchBeatmapById = id =>
@@ -96,7 +102,9 @@ const processBeatmap = (rawBeatmap) => {
 
   cleanBeatmap = map;
 
-  chrome.extension.getBackgroundPage().console.log(cleanBeatmap);
+  previewTime = Number(rawBeatmap.split('PreviewTime:')[1].split('\n')[0]);
+
+  chrome.extension.getBackgroundPage().console.log(previewTime, cleanBeatmap);
 
   // Support old beatmaps
   cleanBeatmap.mode = Number(cleanBeatmap.mode || 0);
