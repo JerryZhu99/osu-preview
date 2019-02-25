@@ -1,4 +1,4 @@
-import ojsama from 'ojsama';
+import ojsama from './ojsama';
 import { BEATMAP_URL_REGEX } from '../common/constants';
 
 const FETCH_ATTEMPTS = 3;
@@ -27,7 +27,6 @@ const playPreview = () => {
   const ctx = canvasElement.getContext('2d');
 
   const hitObjects = cleanBeatmap.objects;
-  const circles = hitObjects.filter(e => e.type === 1);
 
   const { ar: AR, cs: CS } = cleanBeatmap;
 
@@ -46,7 +45,7 @@ const playPreview = () => {
     fadeIn = 800 - 500 * (AR - 5) / 5;
   }
 
-  const fadeOut = 100;
+  const fadeOut = 200;
   const startTime = performance.now();
 
   const animate = (currentTime) => {
@@ -54,7 +53,7 @@ const playPreview = () => {
 
     ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-    circles
+    hitObjects
       .filter(e => time >= e.time - preempt && time <= e.time + fadeOut)
       .forEach((circle) => {
         const size = Math.max(0, circle.time - time) / preempt;
