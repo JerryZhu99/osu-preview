@@ -77,6 +77,9 @@ const playPreview = () => {
       .filter(e => (time >= e.time - preempt && time <= e.time + CIRCLE_HIT_DURATION))
       .reverse()
       .forEach((circle) => {
+        if (circle.type & 8) { // is a spinner
+          return;
+        }
         const size = Math.max(0, circle.time - time) / preempt;
 
         let opacity = Math.max(0, time - (circle.time - preempt)) / fadeIn;
