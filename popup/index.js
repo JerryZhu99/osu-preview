@@ -22,6 +22,11 @@ let pageInfo = {
   beatmapId: null,
 };
 
+const CIRCLE_BORDER_WIDTH = 5;
+const CIRCLE_HIT_FACTOR = 1.33;
+const CIRCLE_HIT_DURATION = 150;
+const APPROACH_CIRCLE_WIDTH = 3;
+const APPROACH_CIRCLE_SIZE = 100;
 
 const playPreview = () => {
   const ctx = canvasElement.getContext('2d');
@@ -45,38 +50,79 @@ const playPreview = () => {
     fadeIn = 800 - 500 * (AR - 5) / 5;
   }
 
-  const fadeOut = 200;
   const startTime = performance.now();
+
+  const comboColours = ['0,202,0', '18,124,255', '242,24,57', '255,192,0'];
 
   const animate = (currentTime) => {
     const time = currentTime - startTime + previewTime;
 
+    let comboNumber = 0;
+    let comboCount = 1;
+
     ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
+    for (let i = 0; i < hitObjects.length; i += 1) {
+      const object = hitObjects[i];
+      comboCount += 1;
+      if (object.type & 0b100) { // New combo bit
+        comboCount = 1;
+        comboNumber = (comboNumber + 1) % comboColours.length;
+      }
+      object.comboCount = comboCount;
+      object.comboNumber = comboNumber;
+    }
+
     hitObjects
-      .filter(e => time >= e.time - preempt && time <= e.time + fadeOut)
+      .filter(e => (time >= e.time - preempt && time <= e.time + CIRCLE_HIT_DURATION))
+      .reverse()
       .forEach((circle) => {
         const size = Math.max(0, circle.time - time) / preempt;
 
         let opacity = Math.max(0, time - (circle.time - preempt)) / fadeIn;
 
         if (time > circle.time) {
-          opacity = 1 - (time - circle.time) / fadeOut;
+          opacity = 1 - (time - circle.time) / CIRCLE_HIT_DURATION;
         }
 
         const [circleX, circleY] = circle.data.pos;
         const x = circleX + 64;
         const y = circleY + 48;
 
-        ctx.strokeStyle = `rgba(0,0,0,${opacity})`;
+
+        ctx.lineWidth = CIRCLE_BORDER_WIDTH;
+        ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
+        ctx.fillStyle = `rgba(${comboColours[circle.comboNumber]},${opacity})`;
+
+        let scale = 1;
+
+        if (time > circle.time) {
+          const t = (time - circle.time) / CIRCLE_HIT_DURATION;
+          scale = 1 - t + t * CIRCLE_HIT_FACTOR;
+        }
+
+        const innerSize = (circleRadius - CIRCLE_BORDER_WIDTH) * scale;
+        const outerSize = (circleRadius - CIRCLE_BORDER_WIDTH / 2) * scale;
         ctx.beginPath();
-        ctx.arc(x, y, circleRadius, 0, Math.PI * 2);
+        ctx.arc(x, y, innerSize, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x, y, outerSize, 0, Math.PI * 2);
         ctx.stroke();
 
-        ctx.strokeStyle = `rgba(0,0,0,${opacity})`;
-        ctx.beginPath();
-        ctx.arc(x, y, circleRadius + size * 100, 0, Math.PI * 2);
-        ctx.stroke();
+        if (time <= circle.time) {
+          ctx.lineWidth = APPROACH_CIRCLE_WIDTH;
+          ctx.strokeStyle = `rgba(${comboColours[circle.comboNumber]},${opacity})`;
+          ctx.beginPath();
+          ctx.arc(x, y, circleRadius + size * APPROACH_CIRCLE_SIZE, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        ctx.font = 'bold 36px sans-serif';
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = `rgba(255,255,255,${opacity})`;
+        ctx.fillText(circle.comboCount, x, y);
       });
     requestAnimationFrame(animate);
   };
