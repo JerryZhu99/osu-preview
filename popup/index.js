@@ -9,6 +9,7 @@ const headerElement = document.getElementById('header');
 const titleElement = document.querySelector('.song-title');
 const artistElement = document.querySelector('.artist');
 const difficultyNameElement = document.getElementById('difficulty-name');
+/** @type {HTMLCanvasElement} */
 const canvasElement = document.getElementById('canvas');
 const errorElement = document.getElementById('error');
 
@@ -21,6 +22,67 @@ let pageInfo = {
   beatmapId: null,
 };
 
+
+const playPreview = () => {
+  const ctx = canvasElement.getContext('2d');
+
+  const hitObjects = cleanBeatmap.objects;
+  const circles = hitObjects.filter(e => e.type === 1);
+
+  const { ar: AR, cs: CS } = cleanBeatmap;
+
+  const circleRadius = 32 * (1 - 0.7 * (CS - 5) / 5);
+
+  let preempt;
+  if (AR <= 5) {
+    preempt = 1200 + 600 * (5 - AR) / 5;
+  } else {
+    preempt = 1200 - 750 * (AR - 5) / 5;
+  }
+  let fadeIn;
+  if (AR <= 5) {
+    fadeIn = 800 + 400 * (5 - AR) / 5;
+  } else {
+    fadeIn = 800 - 500 * (AR - 5) / 5;
+  }
+
+  const fadeOut = 100;
+  const startTime = performance.now();
+
+  const animate = (currentTime) => {
+    const time = currentTime - startTime + previewTime;
+
+    ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+    circles
+      .filter(e => time >= e.time - preempt && time <= e.time + fadeOut)
+      .forEach((circle) => {
+        const size = Math.max(0, circle.time - time) / preempt;
+
+        let opacity = Math.max(0, time - (circle.time - preempt)) / fadeIn;
+
+        if (time > circle.time) {
+          opacity = 1 - (time - circle.time) / fadeOut;
+        }
+
+        const [circleX, circleY] = circle.data.pos;
+        const x = circleX + 64;
+        const y = circleY + 48;
+
+        ctx.strokeStyle = `rgba(0,0,0,${opacity})`;
+        ctx.beginPath();
+        ctx.arc(x, y, circleRadius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = `rgba(0,0,0,${opacity})`;
+        ctx.beginPath();
+        ctx.arc(x, y, circleRadius + size * 100, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+    requestAnimationFrame(animate);
+  };
+  requestAnimationFrame(animate);
+};
 
 function displayError(error) {
   errorElement.innerText = error.message;
@@ -41,27 +103,14 @@ function onReady([, cover]) {
   titleElement.innerText = cleanBeatmap.title;
   artistElement.innerText = cleanBeatmap.artist;
   difficultyNameElement.innerText = cleanBeatmap.version;
-
-  const circleRadius = 32 * (1 - 0.7 * (cleanBeatmap.cs - 5) / 5);
-  const ctx = canvasElement.getContext('2d');
-
-  const hitObjects = cleanBeatmap.objects;
-  const circles = hitObjects.filter(e => e.type === 1);
-
-  ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-  circles.forEach((circle) => {
-    ctx.beginPath();
-
-    ctx.arc(circle.data.pos[0] + 64, circle.data.pos[1] + 48, circleRadius, 0, Math.PI * 2);
-    ctx.stroke();
-  });
-
+  playPreview();
 
   const audio = new Audio();
   audio.volume = 0.45;
   audio.src = `https://b.ppy.sh/preview/${pageInfo.beatmapSetId}.mp3`;
   audio.play();
 }
+
 
 const fetchBeatmapById = id =>
   fetch(`https://osu.ppy.sh/osu/${id}`, { credentials: 'include' })
@@ -120,7 +169,7 @@ const processBeatmap = (rawBeatmap) => {
 
   previewTime = Number(rawBeatmap.split('PreviewTime:')[1].split('\n')[0]);
 
-  chrome.extension.getBackgroundPage().console.log(previewTime, cleanBeatmap);
+  chrome.extension.getBackgroundPage().console.log(cleanBeatmap);
 
   // Support old beatmaps
   cleanBeatmap.mode = Number(cleanBeatmap.mode || 0);
