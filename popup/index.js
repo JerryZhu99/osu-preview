@@ -32,7 +32,7 @@ const FOLLOW_CIRCLE_WIDTH = 3;
 
 const playPreview = () => {
   const ctx = canvasElement.getContext('2d');
-
+  ctx.translate(64, 48);
   const timingPoints = cleanBeatmap.timing_points;
   let msPerBeat = timingPoints[0].ms_per_beat;
   for (let i = 0; i < timingPoints.length; i += 1) {
@@ -74,7 +74,7 @@ const playPreview = () => {
     let comboNumber = 0;
     let comboCount = 1;
 
-    ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    ctx.clearRect(-64, -48, canvasElement.width, canvasElement.height);
 
     for (let i = 0; i < hitObjects.length; i += 1) {
       const object = hitObjects[i];
@@ -104,8 +104,6 @@ const playPreview = () => {
             x = x * (1 - t) + x2 * t;
             y = y * (1 - t) + y2 * t;
           }
-          x += 64;
-          y += 48;
           return { x, y };
         };
       }
@@ -128,17 +126,13 @@ const playPreview = () => {
           opacity = 1 - (time - circle.endTime) / CIRCLE_HIT_DURATION;
         }
 
-        const [circleX, circleY] = circle.data.pos;
-        const x = circleX + 64;
-        const y = circleY + 48;
+        const [x, y] = circle.data.pos;
 
         if (circle.type & 2) {
           ctx.beginPath();
           if (circle.data.type === 'L') {
             ctx.moveTo(x, y);
-            let [cx, cy] = circle.data.points[0];
-            cx += 64;
-            cy += 48;
+            const [cx, cy] = circle.data.points[0];
             const dx = cx - x;
             const dy = cy - y;
             const length = Math.sqrt(dx * dx + dy * dy);
@@ -150,9 +144,7 @@ const playPreview = () => {
             let buffer = [[x, y]];
             for (let i = 0; i < circle.data.points.length; i += 1) {
               const cur = circle.data.points[i];
-              let [cx, cy] = cur;
-              cx += 64;
-              cy += 48;
+              const [cx, cy] = cur;
               const [px, py] = buffer[buffer.length - 1];
               if (cx === px && cy === py) {
                 if (buffer.length === 1) {
@@ -192,8 +184,8 @@ const playPreview = () => {
             const points = circle.data.points;
             // https://stackoverflow.com/q/4103405
             const A = { x, y };
-            const B = { x: points[0][0] + 64, y: points[0][1] + 48 };
-            const C = { x: points[1][0] + 64, y: points[1][1] + 48 };
+            const B = { x: points[0][0], y: points[0][1] };
+            const C = { x: points[1][0], y: points[1][1] };
             const yDeltaA = B.y - A.y;
             const xDeltaA = B.x - A.x;
             const yDeltaB = C.y - B.y;
@@ -236,13 +228,10 @@ const playPreview = () => {
         }
 
         if (time <= circle.time || !(circle.type & 2)) {
-          const innerSize = (circleRadius - CIRCLE_BORDER_WIDTH) * scale;
-          const outerSize = (circleRadius - CIRCLE_BORDER_WIDTH / 2) * scale;
+          const circleSize = (circleRadius - CIRCLE_BORDER_WIDTH / 2) * scale;
           ctx.beginPath();
-          ctx.arc(x, y, innerSize, 0, Math.PI * 2);
+          ctx.arc(x, y, circleSize, 0, Math.PI * 2);
           ctx.fill();
-          ctx.beginPath();
-          ctx.arc(x, y, outerSize, 0, Math.PI * 2);
           ctx.stroke();
 
           ctx.font = 'bold 36px sans-serif';
