@@ -27,13 +27,27 @@ const CIRCLE_HIT_FACTOR = 1.33;
 const CIRCLE_HIT_DURATION = 150;
 const APPROACH_CIRCLE_WIDTH = 3;
 const APPROACH_CIRCLE_SIZE = 100;
+const FOLLOW_CIRCLE_FACTOR = 2;
+const FOLLOW_CIRCLE_WIDTH = 3;
 
 const playPreview = () => {
   const ctx = canvasElement.getContext('2d');
 
+  const timingPoints = cleanBeatmap.timing_points;
+  let msPerBeat = timingPoints[0].ms_per_beat;
+  for (let i = 0; i < timingPoints.length; i += 1) {
+    const point = timingPoints[i];
+    if (point.ms_per_beat < 0) {
+      point.ms_per_beat = msPerBeat * point.ms_per_beat / -100;
+    } else {
+      msPerBeat = point.ms_per_beat;
+    }
+  }
+  timingPoints.reverse();
+
   const hitObjects = cleanBeatmap.objects;
 
-  const { ar: AR, cs: CS } = cleanBeatmap;
+  const { ar: AR, cs: CS, sv: SV } = cleanBeatmap;
 
   const circleRadius = 32 * (1 - 0.7 * (CS - 5) / 5);
 
@@ -71,26 +85,71 @@ const playPreview = () => {
       }
       object.comboCount = comboCount;
       object.comboNumber = comboNumber;
+      if (object.type & 2) {
+        const { ms_per_beat: beatDuration } = timingPoints.find(e => e.time <= object.time);
+        const duration = object.data.distance / (100.0 * SV) * beatDuration;
+        object.duration = duration;
+        object.endTime = object.time + duration;
+      } else {
+        object.endTime = object.time;
+      }
+
+      if (object.type & 2) {
+        // eslint-disable-next-line no-loop-func
+        object.pathFn = (mapTime) => {
+          let [x, y] = object.data.pos;
+          if (object.data.type === 'L') {
+            const [x2, y2] = object.data.points[0];
+            const t = (mapTime - object.time) / object.duration;
+            x = x * (1 - t) + x2 * t;
+            y = y * (1 - t) + y2 * t;
+          }
+          x += 64;
+          y += 48;
+          return { x, y };
+        };
+      }
     }
 
     hitObjects
-      .filter(e => (time >= e.time - preempt && time <= e.time + CIRCLE_HIT_DURATION))
+      .filter((circle) => {
+        if (time < circle.time - preempt) return false;
+        // is a spinner
+        if (circle.type & 8) return false;
+        if (time > circle.endTime + CIRCLE_HIT_DURATION) return false;
+        return true;
+      })
       .reverse()
       .forEach((circle) => {
-        if (circle.type & 8) { // is a spinner
-          return;
-        }
         const size = Math.max(0, circle.time - time) / preempt;
 
         let opacity = Math.max(0, time - (circle.time - preempt)) / fadeIn;
-
-        if (time > circle.time) {
-          opacity = 1 - (time - circle.time) / CIRCLE_HIT_DURATION;
+        if (time > circle.endTime) {
+          opacity = 1 - (time - circle.endTime) / CIRCLE_HIT_DURATION;
         }
 
         const [circleX, circleY] = circle.data.pos;
         const x = circleX + 64;
         const y = circleY + 48;
+
+        if (circle.type & 2) {
+          if (circle.data.type === 'L') {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            for (let i = 0; i < circle.data.points.length; i += 1) {
+              const cur = circle.data.points[i];
+              const [cx, cy] = cur;
+              ctx.lineTo(cx + 64, cy + 48);
+            }
+            ctx.lineCap = 'round';
+            ctx.lineWidth = circleRadius * 2;
+            ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
+            ctx.stroke();
+            ctx.lineWidth = (circleRadius - CIRCLE_BORDER_WIDTH) * 2;
+            ctx.strokeStyle = `rgba(${comboColours[circle.comboNumber]},${opacity})`;
+            ctx.stroke();
+          }
+        }
 
 
         ctx.lineWidth = CIRCLE_BORDER_WIDTH;
@@ -99,20 +158,27 @@ const playPreview = () => {
 
         let scale = 1;
 
-        if (time > circle.time) {
+        if (time > circle.time && !(circle.type & 2)) {
           const t = (time - circle.time) / CIRCLE_HIT_DURATION;
           scale = 1 - t + t * CIRCLE_HIT_FACTOR;
         }
 
-        const innerSize = (circleRadius - CIRCLE_BORDER_WIDTH) * scale;
-        const outerSize = (circleRadius - CIRCLE_BORDER_WIDTH / 2) * scale;
-        ctx.beginPath();
-        ctx.arc(x, y, innerSize, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(x, y, outerSize, 0, Math.PI * 2);
-        ctx.stroke();
+        if (time <= circle.time || !(circle.type & 2)) {
+          const innerSize = (circleRadius - CIRCLE_BORDER_WIDTH) * scale;
+          const outerSize = (circleRadius - CIRCLE_BORDER_WIDTH / 2) * scale;
+          ctx.beginPath();
+          ctx.arc(x, y, innerSize, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(x, y, outerSize, 0, Math.PI * 2);
+          ctx.stroke();
 
+          ctx.font = 'bold 36px sans-serif';
+          ctx.textBaseline = 'middle';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = `rgba(255,255,255,${opacity})`;
+          ctx.fillText(circle.comboCount, x, y);
+        }
         if (time <= circle.time) {
           ctx.lineWidth = APPROACH_CIRCLE_WIDTH;
           ctx.strokeStyle = `rgba(${comboColours[circle.comboNumber]},${opacity})`;
@@ -121,11 +187,19 @@ const playPreview = () => {
           ctx.stroke();
         }
 
-        ctx.font = 'bold 36px sans-serif';
-        ctx.textBaseline = 'middle';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = `rgba(255,255,255,${opacity})`;
-        ctx.fillText(circle.comboCount, x, y);
+        if (time >= circle.time && (circle.type & 2) && time <= circle.endTime) {
+          const { x: px, y: py } = circle.pathFn(time);
+          const outerSize = (circleRadius - CIRCLE_BORDER_WIDTH / 2) * scale;
+          ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
+          ctx.lineWidth = CIRCLE_BORDER_WIDTH;
+          ctx.beginPath();
+          ctx.arc(px, py, outerSize, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.lineWidth = FOLLOW_CIRCLE_WIDTH;
+          ctx.beginPath();
+          ctx.arc(px, py, outerSize * FOLLOW_CIRCLE_FACTOR, 0, Math.PI * 2);
+          ctx.stroke();
+        }
       });
     requestAnimationFrame(animate);
   };
