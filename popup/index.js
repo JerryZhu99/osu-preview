@@ -133,24 +133,96 @@ const playPreview = () => {
         const y = circleY + 48;
 
         if (circle.type & 2) {
+          ctx.beginPath();
           if (circle.data.type === 'L') {
-            ctx.beginPath();
             ctx.moveTo(x, y);
+            let [cx, cy] = circle.data.points[0];
+            cx += 64;
+            cy += 48;
+            const dx = cx - x;
+            const dy = cy - y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const px = x + dx * circle.data.distance / length;
+            const py = y + dy * circle.data.distance / length;
+            ctx.lineTo(px, py);
+          } else if (circle.data.type === 'B') {
+            ctx.moveTo(x, y);
+            let buffer = [[x, y]];
             for (let i = 0; i < circle.data.points.length; i += 1) {
               const cur = circle.data.points[i];
-              const [cx, cy] = cur;
-              ctx.lineTo(cx + 64, cy + 48);
-            }
-            ctx.lineCap = 'round';
-            ctx.lineWidth = circleRadius * 2;
-            ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
-            ctx.stroke();
-            ctx.lineWidth = (circleRadius - CIRCLE_BORDER_WIDTH) * 2;
-            ctx.strokeStyle = `rgba(${comboColours[circle.comboNumber]},${opacity})`;
-            ctx.stroke();
-          }
-        }
+              let [cx, cy] = cur;
+              cx += 64;
+              cy += 48;
+              const [px, py] = buffer[buffer.length - 1];
+              if (cx === px && cy === py) {
+                if (buffer.length === 1) {
+                  ctx.lineTo(buffer[0][0], buffer[0][1]);
+                } else if (buffer.length === 2) {
+                  ctx.quadraticCurveTo(buffer[0][0], buffer[0][1], buffer[1][0], buffer[1][1]);
+                } else if (buffer.length === 3) {
+                  ctx.bezierCurveTo(
+                    buffer[0][0], buffer[0][1],
+                    buffer[1][0], buffer[1][1],
+                    buffer[2][0], buffer[2][1],
+                  );
+                } else {
+                  ctx.lineTo(px, py);
+                }
 
+                buffer = [[cx, cy]];
+              } else {
+                buffer.push([cx, cy]);
+              }
+            }
+            const [px, py] = buffer[buffer.length - 1];
+            if (buffer.length === 1) {
+              ctx.lineTo(buffer[0][0], buffer[0][1]);
+            } else if (buffer.length === 2) {
+              ctx.quadraticCurveTo(buffer[0][0], buffer[0][1], buffer[1][0], buffer[1][1]);
+            } else if (buffer.length === 3) {
+              ctx.bezierCurveTo(
+                buffer[0][0], buffer[0][1],
+                buffer[1][0], buffer[1][1],
+                buffer[2][0], buffer[2][1],
+              );
+            } else {
+              ctx.lineTo(px, py);
+            }
+          } else if (circle.data.type === 'P') {
+            const points = circle.data.points;
+            // https://stackoverflow.com/q/4103405
+            const A = { x, y };
+            const B = { x: points[0][0] + 64, y: points[0][1] + 48 };
+            const C = { x: points[1][0] + 64, y: points[1][1] + 48 };
+            const yDeltaA = B.y - A.y;
+            const xDeltaA = B.x - A.x;
+            const yDeltaB = C.y - B.y;
+            const xDeltaB = C.x - B.x;
+
+            const aSlope = yDeltaA / xDeltaA;
+            const bSlope = yDeltaB / xDeltaB;
+            const centerX = (aSlope * bSlope * (A.y - C.y) + bSlope * (A.x + B.x)
+              - aSlope * (B.x + C.x)) / (2 * (bSlope - aSlope));
+            const centerY = -1 * (centerX - (A.x + B.x) / 2) / aSlope + (A.y + B.y) / 2;
+            const radius = Math.sqrt((centerX - x) * (centerX - x) + (centerY - y) * (centerY - y));
+            const angleA = Math.atan2(A.y - centerY, A.x - centerX);
+            const angleC = Math.atan2(C.y - centerY, C.x - centerX);
+
+            const clockwise = (xDeltaB * yDeltaA - xDeltaA * yDeltaB) < 0;
+            const startAngle = angleC;
+            const endAngle = angleA;
+
+            ctx.arc(centerX, centerY, radius, startAngle, endAngle, clockwise);
+          }
+          ctx.lineJoin = 'round';
+          ctx.lineCap = 'round';
+          ctx.lineWidth = circleRadius * 2;
+          ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
+          ctx.stroke();
+          ctx.lineWidth = (circleRadius - CIRCLE_BORDER_WIDTH) * 2;
+          ctx.strokeStyle = `rgba(${comboColours[circle.comboNumber]},${opacity})`;
+          ctx.stroke();
+        }
 
         ctx.lineWidth = CIRCLE_BORDER_WIDTH;
         ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
