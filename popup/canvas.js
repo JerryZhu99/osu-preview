@@ -31,19 +31,24 @@ const calculateFadeIn = AR => (
     800 + 400 * (5 - AR) / 5 :
     800 - 500 * (AR - 5) / 5);
 
+const isCircle = hitObject => (hitObject.type & 1);
+const isSlider = hitObject => (hitObject.type & 2);
+const isNewCombo = hitObject => (hitObject.type & 4);
+const isSpinner = hitObject => (hitObject.type & 8);
+
 const processHitObjects = (hitObjects, timingPoints, SV) => {
   let comboNumber = 0;
   let comboCount = 1;
   for (let i = 0; i < hitObjects.length; i += 1) {
     const object = hitObjects[i];
     comboCount += 1;
-    if (object.type & 0b100) { // New combo bit
+    if (isNewCombo(object)) { // New combo bit
       comboCount = 1;
       comboNumber = (comboNumber + 1) % COMBO_COLOURS.length;
     }
     object.comboCount = comboCount;
     object.comboNumber = comboNumber;
-    if (object.type & 2) {
+    if (isSlider(object)) {
       const { ms_per_beat: beatDuration } = timingPoints.find(e => e.time <= object.time);
       const duration = object.data.distance / (100.0 * SV) * beatDuration;
       object.duration = duration;
@@ -52,7 +57,7 @@ const processHitObjects = (hitObjects, timingPoints, SV) => {
       object.endTime = object.time;
     }
 
-    if (object.type & 2) {
+    if (isSlider(object)) {
       // eslint-disable-next-line no-loop-func
       object.pathFn = (mapTime) => {
         let [x, y] = object.data.pos;
@@ -171,6 +176,77 @@ const drawPerfectSlider = (ctx, circle) => {
   ctx.arc(centerX, centerY, radius, startAngle, endAngle, clockwise);
 };
 
+const getScale = (circle, time) => {
+  if (time <= circle.time) return 1;
+  const t = (time - circle.time) / CIRCLE_HIT_DURATION;
+  return 1 - t + t * CIRCLE_HIT_FACTOR;
+};
+
+const getOpacity = (circle, time, fadeIn, preempt) => {
+  let opacity = Math.max(0, time - (circle.time - preempt)) / fadeIn;
+  if (time > circle.endTime) {
+    opacity = 1 - (time - circle.endTime) / CIRCLE_HIT_DURATION;
+  }
+  return opacity;
+};
+
+const drawSliderBody = (ctx, circle, circleRadius, time, fadeIn, preempt) => {
+  const opacity = getOpacity(circle, time, fadeIn, preempt);
+  if (circle.data.type === 'L') {
+    drawLinearSlider(ctx, circle);
+  } else if (circle.data.type === 'B') {
+    drawBezierSlider(ctx, circle);
+  } else if (circle.data.type === 'P') {
+    drawPerfectSlider(ctx, circle);
+  }
+  sliderStroke(ctx, circleRadius, COMBO_COLOURS[circle.comboNumber], opacity);
+};
+
+const drawHitCircle = (ctx, circle, circleRadius, time, fadeIn, preempt) => {
+  const scale = getScale(circle, time);
+  const opacity = getOpacity(circle, time, fadeIn, preempt);
+  const [x, y] = circle.data.pos;
+  const circleSize = (circleRadius - CIRCLE_BORDER_WIDTH / 2) * scale;
+  ctx.lineWidth = CIRCLE_BORDER_WIDTH;
+  ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
+  ctx.fillStyle = `rgba(${COMBO_COLOURS[circle.comboNumber]},${opacity})`;
+  ctx.beginPath();
+  ctx.arc(x, y, circleSize, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.font = 'bold 36px sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = `rgba(255,255,255,${opacity})`;
+  ctx.fillText(circle.comboCount, x, y);
+};
+
+const drawApproachCircle = (ctx, circle, circleRadius, time, fadeIn, preempt) => {
+  const opacity = getOpacity(circle, time, fadeIn, preempt);
+  const [x, y] = circle.data.pos;
+  const size = Math.max(0, circle.time - time) / preempt;
+  ctx.lineWidth = APPROACH_CIRCLE_WIDTH;
+  ctx.strokeStyle = `rgba(${COMBO_COLOURS[circle.comboNumber]},${opacity})`;
+  ctx.beginPath();
+  ctx.arc(x, y, circleRadius + size * APPROACH_CIRCLE_SIZE, 0, Math.PI * 2);
+  ctx.stroke();
+};
+
+const drawFollowCircle = (ctx, circle, circleRadius, time) => {
+  const { x: px, y: py } = circle.pathFn(time);
+  const outerSize = (circleRadius - CIRCLE_BORDER_WIDTH / 2);
+  ctx.strokeStyle = `rgba(255,255,255,${1})`;
+  ctx.lineWidth = CIRCLE_BORDER_WIDTH;
+  ctx.beginPath();
+  ctx.arc(px, py, outerSize, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.lineWidth = FOLLOW_CIRCLE_WIDTH;
+  ctx.beginPath();
+  ctx.arc(px, py, outerSize * FOLLOW_CIRCLE_FACTOR, 0, Math.PI * 2);
+  ctx.stroke();
+};
+
 const playPreview = (canvasElement, beatmap, previewTime) => {
   const ctx = canvasElement.getContext('2d');
   ctx.translate(64, 48);
@@ -199,76 +275,24 @@ const playPreview = (canvasElement, beatmap, previewTime) => {
       .filter((circle) => {
         if (time < circle.time - preempt) return false;
         // is a spinner
-        if (circle.type & 8) return false;
+        if (isSpinner(circle)) return false;
         if (time > circle.endTime + CIRCLE_HIT_DURATION) return false;
         return true;
       })
       .reverse()
       .forEach((circle) => {
-        const size = Math.max(0, circle.time - time) / preempt;
-
-        let opacity = Math.max(0, time - (circle.time - preempt)) / fadeIn;
-        if (time > circle.endTime) {
-          opacity = 1 - (time - circle.endTime) / CIRCLE_HIT_DURATION;
+        if (isSlider(circle)) {
+          drawSliderBody(ctx, circle, circleRadius, time, fadeIn, preempt);
         }
 
-        if (circle.type & 2) {
-          if (circle.data.type === 'L') {
-            drawLinearSlider(ctx, circle);
-          } else if (circle.data.type === 'B') {
-            drawBezierSlider(ctx, circle);
-          } else if (circle.data.type === 'P') {
-            drawPerfectSlider(ctx, circle);
-          }
-          sliderStroke(ctx, circleRadius, COMBO_COLOURS[circle.comboNumber], opacity);
+        if (time <= circle.time || isCircle(circle)) {
+          drawHitCircle(ctx, circle, circleRadius, time, fadeIn, preempt);
         }
 
-        ctx.lineWidth = CIRCLE_BORDER_WIDTH;
-        ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
-        ctx.fillStyle = `rgba(${COMBO_COLOURS[circle.comboNumber]},${opacity})`;
-
-        let scale = 1;
-
-        if (time > circle.time && !(circle.type & 2)) {
-          const t = (time - circle.time) / CIRCLE_HIT_DURATION;
-          scale = 1 - t + t * CIRCLE_HIT_FACTOR;
-        }
-
-        const [x, y] = circle.data.pos;
-
-        if (time <= circle.time || !(circle.type & 2)) {
-          const circleSize = (circleRadius - CIRCLE_BORDER_WIDTH / 2) * scale;
-          ctx.beginPath();
-          ctx.arc(x, y, circleSize, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-
-          ctx.font = 'bold 36px sans-serif';
-          ctx.textBaseline = 'middle';
-          ctx.textAlign = 'center';
-          ctx.fillStyle = `rgba(255,255,255,${opacity})`;
-          ctx.fillText(circle.comboCount, x, y);
-        }
         if (time <= circle.time) {
-          ctx.lineWidth = APPROACH_CIRCLE_WIDTH;
-          ctx.strokeStyle = `rgba(${COMBO_COLOURS[circle.comboNumber]},${opacity})`;
-          ctx.beginPath();
-          ctx.arc(x, y, circleRadius + size * APPROACH_CIRCLE_SIZE, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-
-        if (time >= circle.time && (circle.type & 2) && time <= circle.endTime) {
-          const { x: px, y: py } = circle.pathFn(time);
-          const outerSize = (circleRadius - CIRCLE_BORDER_WIDTH / 2) * scale;
-          ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
-          ctx.lineWidth = CIRCLE_BORDER_WIDTH;
-          ctx.beginPath();
-          ctx.arc(px, py, outerSize, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.lineWidth = FOLLOW_CIRCLE_WIDTH;
-          ctx.beginPath();
-          ctx.arc(px, py, outerSize * FOLLOW_CIRCLE_FACTOR, 0, Math.PI * 2);
-          ctx.stroke();
+          drawApproachCircle(ctx, circle, circleRadius, time, fadeIn, preempt);
+        } else if (isSlider(circle) && time <= circle.endTime) {
+          drawFollowCircle(ctx, circle, circleRadius, time);
         }
       });
     requestAnimationFrame(animate);
@@ -276,6 +300,4 @@ const playPreview = (canvasElement, beatmap, previewTime) => {
   requestAnimationFrame(animate);
 };
 
-export default {
-  playPreview,
-};
+export default playPreview;
