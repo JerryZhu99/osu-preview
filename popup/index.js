@@ -42,12 +42,13 @@ function onReady([, cover]) {
   titleElement.innerText = cleanBeatmap.title;
   artistElement.innerText = cleanBeatmap.artist;
   difficultyNameElement.innerText = cleanBeatmap.version;
-  playPreview(canvasElement, cleanBeatmap, previewTime);
 
   const audio = new Audio();
   audio.volume = 0.45;
   audio.src = `https://b.ppy.sh/preview/${pageInfo.beatmapSetId}.mp3`;
-  audio.play();
+  audio.play()
+    .then(() => playPreview(canvasElement, cleanBeatmap, previewTime))
+    .catch(displayError);
 }
 
 
