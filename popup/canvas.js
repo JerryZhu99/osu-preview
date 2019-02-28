@@ -21,6 +21,8 @@ const processTimingPoints = (timingPoints) => {
   timingPoints.reverse();
 };
 
+const calculateRadius = CS => 32 * (1 - 0.7 * (CS - 5) / 5);
+
 const calculatePreempt = AR => (
   AR <= 5 ?
     1200 + 600 * (5 - AR) / 5 :
@@ -55,25 +57,6 @@ const processHitObjects = (hitObjects, timingPoints, SV) => {
       object.endTime = object.time + duration;
     } else {
       object.endTime = object.time;
-    }
-
-    if (isSlider(object)) {
-      // eslint-disable-next-line no-loop-func
-      object.pathFn = (mapTime) => {
-        let [x, y] = object.data.pos;
-        if (object.data.type === 'L') {
-          const [cx, cy] = object.data.points[0];
-          const dx = cx - x;
-          const dy = cy - y;
-          const length = Math.sqrt(dx * dx + dy * dy);
-          const x2 = x + dx * object.data.distance / length;
-          const y2 = y + dy * object.data.distance / length;
-          const t = (mapTime - object.time) / object.duration;
-          x = x * (1 - t) + x2 * t;
-          y = y * (1 - t) + y2 * t;
-        }
-        return { x, y };
-      };
     }
   }
 };
@@ -115,7 +98,10 @@ const drawBezierSlider = (ctx, circle) => {
       if (buffer.length === 1) {
         ctx.lineTo(buffer[0][0], buffer[0][1]);
       } else if (buffer.length === 2) {
-        ctx.quadraticCurveTo(buffer[0][0], buffer[0][1], buffer[1][0], buffer[1][1]);
+        ctx.quadraticCurveTo(
+          buffer[0][0], buffer[0][1],
+          buffer[1][0], buffer[1][1],
+        );
       } else if (buffer.length === 3) {
         ctx.bezierCurveTo(
           buffer[0][0], buffer[0][1],
@@ -168,12 +154,12 @@ const drawPerfectSlider = (ctx, circle) => {
   const angleA = Math.atan2(A.y - centerY, A.x - centerX);
   const angleC = Math.atan2(C.y - centerY, C.x - centerX);
 
-  const clockwise = (xDeltaB * yDeltaA - xDeltaA * yDeltaB) < 0;
-  const startAngle = angleC;
-  const endAngle = angleA;
+  const anticlockwise = (xDeltaB * yDeltaA - xDeltaA * yDeltaB) > 0;
+  const startAngle = angleA;
+  const endAngle = angleC;
 
   ctx.beginPath();
-  ctx.arc(centerX, centerY, radius, startAngle, endAngle, clockwise);
+  ctx.arc(centerX, centerY, radius, startAngle, endAngle, anticlockwise);
 };
 
 const getScale = (circle, time) => {
@@ -233,17 +219,61 @@ const drawApproachCircle = (ctx, circle, circleRadius, time, fadeIn, preempt) =>
   ctx.stroke();
 };
 
+const getFollowPosition = (object, time) => {
+  let [x, y] = object.data.pos;
+  const t = (time - object.time) / object.duration;
+  if (object.data.type === 'L') {
+    const [cx, cy] = object.data.points[0];
+    const dx = cx - x;
+    const dy = cy - y;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    const x2 = x + dx * object.data.distance / length;
+    const y2 = y + dy * object.data.distance / length;
+    x = x * (1 - t) + x2 * t;
+    y = y * (1 - t) + y2 * t;
+  } else if (object.data.type === 'P') {
+    const points = object.data.points;
+    // https://stackoverflow.com/q/4103405
+    const A = { x, y };
+    const B = { x: points[0][0], y: points[0][1] };
+    const C = { x: points[1][0], y: points[1][1] };
+    const yDeltaA = B.y - A.y;
+    const xDeltaA = B.x - A.x;
+    const yDeltaB = C.y - B.y;
+    const xDeltaB = C.x - B.x;
+
+    const aSlope = yDeltaA / xDeltaA;
+    const bSlope = yDeltaB / xDeltaB;
+    const centerX = (aSlope * bSlope * (A.y - C.y) + bSlope * (A.x + B.x)
+      - aSlope * (B.x + C.x)) / (2 * (bSlope - aSlope));
+    const centerY = -1 * (centerX - (A.x + B.x) / 2) / aSlope + (A.y + B.y) / 2;
+    const radius = Math.sqrt((centerX - x) * (centerX - x) + (centerY - y) * (centerY - y));
+    const angleA = Math.atan2(A.y - centerY, A.x - centerX);
+    const angleC = Math.atan2(C.y - centerY, C.x - centerX);
+
+    const anticlockwise = (xDeltaB * yDeltaA - xDeltaA * yDeltaB) > 0;
+    const startAngle = angleA;
+    let endAngle = angleC;
+
+    if (!anticlockwise && (endAngle - startAngle) < 0) { endAngle += 2 * Math.PI; }
+    if (anticlockwise && (endAngle - startAngle) > 0) { endAngle -= 2 * Math.PI; }
+    x = centerX + radius * Math.cos(startAngle + (endAngle - startAngle) * t);
+    y = centerY + radius * Math.sin(startAngle + (endAngle - startAngle) * t);
+  }
+  return { x, y };
+};
+
 const drawFollowCircle = (ctx, circle, circleRadius, time) => {
-  const { x: px, y: py } = circle.pathFn(time);
+  const { x, y } = getFollowPosition(circle, time);
   const outerSize = (circleRadius - CIRCLE_BORDER_WIDTH / 2);
   ctx.strokeStyle = `rgba(255,255,255,${1})`;
   ctx.lineWidth = CIRCLE_BORDER_WIDTH;
   ctx.beginPath();
-  ctx.arc(px, py, outerSize, 0, Math.PI * 2);
+  ctx.arc(x, y, outerSize, 0, Math.PI * 2);
   ctx.stroke();
   ctx.lineWidth = FOLLOW_CIRCLE_WIDTH;
   ctx.beginPath();
-  ctx.arc(px, py, outerSize * FOLLOW_CIRCLE_FACTOR, 0, Math.PI * 2);
+  ctx.arc(x, y, outerSize * FOLLOW_CIRCLE_FACTOR, 0, Math.PI * 2);
   ctx.stroke();
 };
 
@@ -257,8 +287,7 @@ const playPreview = (canvasElement, beatmap, previewTime) => {
 
   const { ar: AR, cs: CS, sv: SV } = beatmap;
 
-  const circleRadius = 32 * (1 - 0.7 * (CS - 5) / 5);
-
+  const radius = calculateRadius(CS);
   const preempt = calculatePreempt(AR);
   const fadeIn = calculateFadeIn(AR);
 
@@ -272,27 +301,27 @@ const playPreview = (canvasElement, beatmap, previewTime) => {
     ctx.clearRect(-64, -48, canvasElement.width, canvasElement.height);
 
     hitObjects
-      .filter((circle) => {
-        if (time < circle.time - preempt) return false;
+      .filter((object) => {
+        if (time < object.time - preempt) return false;
         // is a spinner
-        if (isSpinner(circle)) return false;
-        if (time > circle.endTime + CIRCLE_HIT_DURATION) return false;
+        if (isSpinner(object)) return false;
+        if (time > object.endTime + CIRCLE_HIT_DURATION) return false;
         return true;
       })
       .reverse()
-      .forEach((circle) => {
-        if (isSlider(circle)) {
-          drawSliderBody(ctx, circle, circleRadius, time, fadeIn, preempt);
+      .forEach((object) => {
+        if (isSlider(object)) {
+          drawSliderBody(ctx, object, radius, time, fadeIn, preempt);
         }
 
-        if (time <= circle.time || isCircle(circle)) {
-          drawHitCircle(ctx, circle, circleRadius, time, fadeIn, preempt);
+        if (time <= object.time || isCircle(object)) {
+          drawHitCircle(ctx, object, radius, time, fadeIn, preempt);
         }
 
-        if (time <= circle.time) {
-          drawApproachCircle(ctx, circle, circleRadius, time, fadeIn, preempt);
-        } else if (isSlider(circle) && time <= circle.endTime) {
-          drawFollowCircle(ctx, circle, circleRadius, time);
+        if (time <= object.time) {
+          drawApproachCircle(ctx, object, radius, time, fadeIn, preempt);
+        } else if (isSlider(object) && time <= object.endTime) {
+          drawFollowCircle(ctx, object, radius, time);
         }
       });
     requestAnimationFrame(animate);
