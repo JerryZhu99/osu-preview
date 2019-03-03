@@ -131,7 +131,7 @@ const drawBezierPoints = (ctx, points) => {
       points[3][0], points[3][1],
     );
   } else {
-    const divisions = 64;
+    const divisions = Math.min(64, Math.ceil(500 / points.length));
     for (let j = 0; j <= divisions; j += 1) {
       const [x1, y1] = bezierAt(j / divisions, points);
       ctx.lineTo(x1, y1);
@@ -259,7 +259,7 @@ const getFollowPosition = (object, time) => {
   } else if (object.data.type === 'B') {
     const targetDist = t * object.data.distance;
     let buffer = [[x, y]];
-    const divisions = Math.ceil(500 / object.data.points.length);
+    const divisions = Math.min(64, Math.ceil(500 / object.data.points.length));
     const bezierPoints = [];
     for (let i = 0; i < object.data.points.length; i += 1) {
       const cur = object.data.points[i];
@@ -350,7 +350,7 @@ const toTimeString = (time) => {
   return `${minutes}:${(`00${seconds}`).substr(-2)}`;
 };
 
-const playPreview = (canvasElement, playbackTimeElement, beatmap, previewTime) => {
+const playPreview = (canvasElement, playbackTimeElement, progressElement, beatmap, previewTime) => {
   const ctx = canvasElement.getContext('2d');
   ctx.translate(64, 48);
   const timingPoints = beatmap.timing_points;
@@ -375,7 +375,7 @@ const playPreview = (canvasElement, playbackTimeElement, beatmap, previewTime) =
     const time = currentTime - startTime + previewTime;
     // eslint-disable-next-line no-param-reassign
     playbackTimeElement.innerText = `${toTimeString(Math.min(time, lastTime))} / ${toTimeString(lastTime)}`;
-
+    progressElement.style.setProperty('--progress', time / lastTime);
     ctx.clearRect(-64, -48, canvasElement.width, canvasElement.height);
 
     hitObjects
