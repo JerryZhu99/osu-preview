@@ -1,30 +1,34 @@
 {
   "manifest_version": 2,
-  "name": "ezpp!",
-  "description": "Directly calculate pp for a beatmap in your browser.",
-  "version": "1.8.2",
+  "name": "osu! preview",
+  "description": "Preview an beatmap in your browser.",
+  "version": "0.0.1",
   "icons": {
     "48": "icon48.png",
     "128": "icon128.png"
   },
-  "applications": {
-    "gecko": {
-      "id": "ezpp@bittipiilo.com"
-    }
-  },
   "background": {
-    "scripts": ["background.js"]
+    "scripts": [
+      "background.js"
+    ]
   },
-  "content_scripts": [{
-    "matches": ["*://osu.ppy.sh/*"],
-    "js": ["content.js"]
-  }],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://osu.ppy.sh/*"
+      ],
+      "js": [
+        "content.js"
+      ]
+    }
+  ],
   "page_action": {
     "default_icon": "icon48.png",
     "default_popup": "popup.html"
   },
   "permissions": [
-    "tabs", "storage",
+    "tabs",
+    "storage",
     "https://*.ppy.sh/",
     "http://*.ppy.sh/"
   ],
