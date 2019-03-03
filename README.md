@@ -53,4 +53,4 @@ Run `npm run build:all`. Two files, `osu-preview-chrome.zip` and `osu-preview-fi
 
 ## License
 
-[MIT](https://github.com/oamaok/ezpp/blob/master/LICENSE)
+[MIT](https://github.com/JerryZhu99/osu-preview/blob/master/LICENSE)
