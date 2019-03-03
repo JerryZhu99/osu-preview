@@ -9,7 +9,9 @@ const COMBO_COLOURS = ['0,202,0', '18,124,255', '242,24,57', '255,192,0'];
 
 
 const processTimingPoints = (timingPoints) => {
-  let msPerBeat = timingPoints[0].ms_per_beat;
+  const firstPoint = timingPoints[0];
+  firstPoint.time = 0;
+  let msPerBeat = firstPoint.ms_per_beat;
   for (let i = 0; i < timingPoints.length; i += 1) {
     const point = timingPoints[i];
     if (point.ms_per_beat < 0) {
