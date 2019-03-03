@@ -350,7 +350,16 @@ const toTimeString = (time) => {
   return `${minutes}:${(`00${seconds}`).substr(-2)}`;
 };
 
+/**
+ *
+ * @param {HTMLCanvasElement} canvasElement
+ * @param {*} playbackTimeElement
+ * @param {HTMLDivElement} progressElement
+ * @param {*} beatmap
+ * @param {*} previewTime
+ */
 const playPreview = (canvasElement, playbackTimeElement, progressElement, beatmap, previewTime) => {
+  let mapStartTime = previewTime;
   const ctx = canvasElement.getContext('2d');
   ctx.translate(64, 48);
   const timingPoints = beatmap.timing_points;
@@ -366,13 +375,15 @@ const playPreview = (canvasElement, playbackTimeElement, progressElement, beatma
 
   processHitObjects(hitObjects, timingPoints, SV);
 
-  const startTime = performance.now();
+  let startTime = performance.now();
 
   const lastObject = hitObjects[hitObjects.length - 1];
-  const lastTime = isSlider(lastObject) ? lastObject.endTime : lastObject.time;
+  const lastTime = (isSlider(lastObject) ? lastObject.endTime : lastObject.time) + 1000;
+
+  let seeking = false;
 
   const animate = (currentTime) => {
-    const time = currentTime - startTime + previewTime;
+    const time = seeking ? mapStartTime : currentTime - startTime + mapStartTime;
     // eslint-disable-next-line no-param-reassign
     playbackTimeElement.innerText = `${toTimeString(Math.min(time, lastTime))} / ${toTimeString(lastTime)}`;
     progressElement.style.setProperty('--progress', time / lastTime);
@@ -405,6 +416,28 @@ const playPreview = (canvasElement, playbackTimeElement, progressElement, beatma
     requestAnimationFrame(animate);
   };
   requestAnimationFrame(animate);
+
+  progressElement.addEventListener('pointerdown', (e) => {
+    seeking = true;
+    const rect = progressElement.getBoundingClientRect();
+    const x = Math.max(0, e.clientX - rect.left);
+    const time = (x / rect.width) * lastTime;
+    startTime = performance.now();
+    mapStartTime = time;
+    progressElement.classList.add('seeking');
+  });
+  document.addEventListener('pointermove', (e) => {
+    if (!seeking) return;
+    const rect = progressElement.getBoundingClientRect();
+    const x = Math.max(0, e.clientX - rect.left);
+    const time = (x / rect.width) * lastTime;
+    startTime = performance.now();
+    mapStartTime = time;
+  });
+  document.addEventListener('pointerup', () => {
+    progressElement.classList.remove('seeking');
+    seeking = false;
+  });
 };
 
 export default playPreview;

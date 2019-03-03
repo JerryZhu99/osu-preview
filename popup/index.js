@@ -49,8 +49,14 @@ function onReady([, cover]) {
   audio.volume = 0.45;
   audio.src = `https://b.ppy.sh/preview/${pageInfo.beatmapSetId}.mp3`;
   audio.play()
-    .then(() => playPreview(canvasElement, playbackTimeElement, progressElement, cleanBeatmap, previewTime))
+    .then(() => playPreview(
+      canvasElement, playbackTimeElement,
+      progressElement, cleanBeatmap, previewTime,
+    ))
     .catch(displayError);
+  progressElement.addEventListener('pointerdown', () => {
+    audio.pause();
+  });
 }
 
 
