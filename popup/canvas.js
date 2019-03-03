@@ -344,7 +344,13 @@ const drawFollowCircle = (ctx, circle, circleRadius, time) => {
   ctx.stroke();
 };
 
-const playPreview = (canvasElement, beatmap, previewTime) => {
+const toTimeString = (time) => {
+  const seconds = Math.floor(time / 1000) % 60;
+  const minutes = Math.floor(time / 1000 / 60) % 60;
+  return `${minutes}:${(`00${seconds}`).substr(-2)}`;
+};
+
+const playPreview = (canvasElement, playbackTimeElement, beatmap, previewTime) => {
   const ctx = canvasElement.getContext('2d');
   ctx.translate(64, 48);
   const timingPoints = beatmap.timing_points;
@@ -362,8 +368,13 @@ const playPreview = (canvasElement, beatmap, previewTime) => {
 
   const startTime = performance.now();
 
+  const lastObject = hitObjects[hitObjects.length - 1];
+  const lastTime = isSlider(lastObject) ? lastObject.endTime : lastObject.time;
+
   const animate = (currentTime) => {
     const time = currentTime - startTime + previewTime;
+    // eslint-disable-next-line no-param-reassign
+    playbackTimeElement.innerText = `${toTimeString(Math.min(time, lastTime))} / ${toTimeString(lastTime)}`;
 
     ctx.clearRect(-64, -48, canvasElement.width, canvasElement.height);
 

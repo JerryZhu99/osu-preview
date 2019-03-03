@@ -10,6 +10,7 @@ const headerElement = document.getElementById('header');
 const titleElement = document.querySelector('.song-title');
 const artistElement = document.querySelector('.artist');
 const difficultyNameElement = document.getElementById('difficulty-name');
+const playbackTimeElement = document.getElementById('playback-time');
 /** @type {HTMLCanvasElement} */
 const canvasElement = document.getElementById('canvas');
 const errorElement = document.getElementById('error');
@@ -47,7 +48,7 @@ function onReady([, cover]) {
   audio.volume = 0.45;
   audio.src = `https://b.ppy.sh/preview/${pageInfo.beatmapSetId}.mp3`;
   audio.play()
-    .then(() => playPreview(canvasElement, cleanBeatmap, previewTime))
+    .then(() => playPreview(canvasElement, playbackTimeElement, cleanBeatmap, previewTime))
     .catch(displayError);
 }
 

@@ -40,7 +40,7 @@
     color: #7f7f7f
     font-size: 0.75em
   .song-info
-    width: 24em
+    width: 30em
     height: 100%
     padding: 0.5em 1em 1em 1em
     position: absolute
@@ -58,24 +58,29 @@
       font-size: 1.25em
       font-style: italic
       flex-grow: 1
-    .difficulty
+    .other
       display: flex
-      align-items: center
-      #difficulty-name
-        margin-right: 0.5em
-        font-size: 1em
-        font-weight: 600
-      .difficulty-stars
-        font-size: 1em
+      justify-content: space-between
+      align-items: flex-end
+      .difficulty
         display: flex
         align-items: center
-        color: #fc2
-        transition: 0.1s all ease-out
-        i,span
+        #difficulty-name
+          margin-right: 0.5em
+          font-size: 1em
           font-weight: 600
-          font-size: 0.8rem
-        i
-          margin-right: 0.1em
-        &.hidden
-          opacity: 0
-
+        .difficulty-stars
+          font-size: 1em
+          display: flex
+          align-items: center
+          color: #fc2
+          transition: 0.1s all ease-out
+          i,span
+            font-weight: 600
+            font-size: 0.8rem
+          i
+            margin-right: 0.1em
+          &.hidden
+            opacity: 0
+      .playback
+        font-size: 1.5em
