@@ -61,6 +61,32 @@ const processHitObjects = (hitObjects, timingPoints, SV) => {
   }
 };
 
+
+const lerp = (t, a, b) => (1 - t) * a + t * b;
+
+const lerper = t => (a, b) => lerp(t, a, b);
+
+const zip = (fn, ...arrs) => {
+  const len = Math.max(...(arrs.map(e => e.length)));
+  const result = [];
+  for (let i = 0; i < len; i += 1) {
+    result.push(fn(...arrs.map(e => e[i])));
+  }
+  return result;
+};
+
+const lerperVector = t => (a, b) => zip(lerper(t), a, b);
+
+const bezierAt = (t, points) => {
+  if (points.length === 1) {
+    return points[0];
+  }
+  const starts = points.slice(0, -1);
+  const ends = points.slice(1);
+  return bezierAt(t, zip(lerperVector(t), starts, ends));
+};
+
+
 const sliderStroke = (ctx, circleRadius, colour, opacity) => {
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
@@ -85,6 +111,34 @@ const drawLinearSlider = (ctx, circle) => {
   ctx.lineTo(px, py);
 };
 
+const drawBezierPoints = (ctx, points) => {
+  if (points.length === 1) {
+    ctx.moveTo(points[0][0], points[0][1]);
+  } else if (points.length === 2) {
+    ctx.moveTo(points[0][0], points[0][1]);
+    ctx.lineTo(points[1][0], points[1][1]);
+  } else if (points.length === 3) {
+    ctx.moveTo(points[0][0], points[0][1]);
+    ctx.quadraticCurveTo(
+      points[1][0], points[1][1],
+      points[2][0], points[2][1],
+    );
+  } else if (points.length === 4) {
+    ctx.moveTo(points[0][0], points[0][1]);
+    ctx.bezierCurveTo(
+      points[1][0], points[1][1],
+      points[2][0], points[2][1],
+      points[3][0], points[3][1],
+    );
+  } else {
+    const divisions = 64;
+    for (let j = 0; j <= divisions; j += 1) {
+      const [x1, y1] = bezierAt(j / divisions, points);
+      ctx.lineTo(x1, y1);
+    }
+  }
+};
+
 const drawBezierSlider = (ctx, circle) => {
   const [x, y] = circle.data.pos;
   ctx.beginPath();
@@ -95,42 +149,13 @@ const drawBezierSlider = (ctx, circle) => {
     const [cx, cy] = cur;
     const [px, py] = buffer[buffer.length - 1];
     if (cx === px && cy === py) {
-      if (buffer.length === 1) {
-        ctx.lineTo(buffer[0][0], buffer[0][1]);
-      } else if (buffer.length === 2) {
-        ctx.quadraticCurveTo(
-          buffer[0][0], buffer[0][1],
-          buffer[1][0], buffer[1][1],
-        );
-      } else if (buffer.length === 3) {
-        ctx.bezierCurveTo(
-          buffer[0][0], buffer[0][1],
-          buffer[1][0], buffer[1][1],
-          buffer[2][0], buffer[2][1],
-        );
-      } else {
-        ctx.lineTo(px, py);
-      }
-
+      drawBezierPoints(ctx, buffer);
       buffer = [[cx, cy]];
     } else {
       buffer.push([cx, cy]);
     }
   }
-  const [px, py] = buffer[buffer.length - 1];
-  if (buffer.length === 1) {
-    ctx.lineTo(buffer[0][0], buffer[0][1]);
-  } else if (buffer.length === 2) {
-    ctx.quadraticCurveTo(buffer[0][0], buffer[0][1], buffer[1][0], buffer[1][1]);
-  } else if (buffer.length === 3) {
-    ctx.bezierCurveTo(
-      buffer[0][0], buffer[0][1],
-      buffer[1][0], buffer[1][1],
-      buffer[2][0], buffer[2][1],
-    );
-  } else {
-    ctx.lineTo(px, py);
-  }
+  drawBezierPoints(ctx, buffer);
 };
 
 const drawPerfectSlider = (ctx, circle) => {
@@ -231,6 +256,48 @@ const getFollowPosition = (object, time) => {
     const y2 = y + dy * object.data.distance / length;
     x = x * (1 - t) + x2 * t;
     y = y * (1 - t) + y2 * t;
+  } else if (object.data.type === 'B') {
+    const targetDist = t * object.data.distance;
+    let buffer = [[x, y]];
+    const divisions = Math.ceil(500 / object.data.points.length);
+    const bezierPoints = [];
+    for (let i = 0; i < object.data.points.length; i += 1) {
+      const cur = object.data.points[i];
+      const [cx, cy] = cur;
+      const [px, py] = buffer[buffer.length - 1];
+      if (cx === px && cy === py) {
+        for (let j = 0; j <= divisions; j += 1) {
+          bezierPoints.push(bezierAt(j / divisions, buffer));
+        }
+        buffer = [[cx, cy]];
+      } else {
+        buffer.push([cx, cy]);
+      }
+    }
+    for (let j = 0; j <= divisions; j += 1) {
+      bezierPoints.push(bezierAt(j / divisions, buffer));
+    }
+
+    let dist = 0;
+    for (let i = 0; i < bezierPoints.length - 1; i += 1) {
+      const [x1, y1] = bezierPoints[i];
+      const [x2, y2] = bezierPoints[i + 1];
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const length = Math.hypot(dx, dy);
+      if (dist + length < targetDist && i !== bezierPoints.length - 2) {
+        x = x2;
+        y = y2;
+        dist += length;
+      } else {
+        const trueLength = targetDist - dist;
+        x = lerp(trueLength / length, x1, x2);
+        y = lerp(trueLength / length, y1, y2);
+        x = x2;
+        y = y2;
+        break;
+      }
+    }
   } else if (object.data.type === 'P') {
     const points = object.data.points;
     // https://stackoverflow.com/q/4103405
