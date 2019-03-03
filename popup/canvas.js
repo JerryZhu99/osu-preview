@@ -1,8 +1,8 @@
-const CIRCLE_BORDER_WIDTH = 5;
+const CIRCLE_BORDER_WIDTH = 0.15;
 const CIRCLE_HIT_FACTOR = 1.33;
 const CIRCLE_HIT_DURATION = 150;
-const APPROACH_CIRCLE_WIDTH = 3;
-const APPROACH_CIRCLE_SIZE = 100;
+const APPROACH_CIRCLE_WIDTH = 0.09;
+const APPROACH_CIRCLE_SIZE = 4;
 const FOLLOW_CIRCLE_FACTOR = 2;
 const FOLLOW_CIRCLE_WIDTH = 3;
 const COMBO_COLOURS = ['0,202,0', '18,124,255', '242,24,57', '255,192,0'];
@@ -93,7 +93,7 @@ const sliderStroke = (ctx, circleRadius, colour, opacity) => {
   ctx.lineWidth = circleRadius * 2;
   ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
   ctx.stroke();
-  ctx.lineWidth = (circleRadius - CIRCLE_BORDER_WIDTH) * 2;
+  ctx.lineWidth = circleRadius * 2 * (1 - CIRCLE_BORDER_WIDTH);
   ctx.strokeStyle = `rgba(${colour},${opacity})`;
   ctx.stroke();
 };
@@ -217,8 +217,8 @@ const drawHitCircle = (ctx, circle, circleRadius, time, fadeIn, preempt) => {
   const scale = getScale(circle, time);
   const opacity = getOpacity(circle, time, fadeIn, preempt);
   const [x, y] = circle.data.pos;
-  const circleSize = (circleRadius - CIRCLE_BORDER_WIDTH / 2) * scale;
-  ctx.lineWidth = CIRCLE_BORDER_WIDTH;
+  const circleSize = circleRadius * (1 - CIRCLE_BORDER_WIDTH / 2) * scale;
+  ctx.lineWidth = circleRadius * CIRCLE_BORDER_WIDTH;
   ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
   ctx.fillStyle = `rgba(${COMBO_COLOURS[circle.comboNumber]},${opacity})`;
   ctx.beginPath();
@@ -226,7 +226,7 @@ const drawHitCircle = (ctx, circle, circleRadius, time, fadeIn, preempt) => {
   ctx.fill();
   ctx.stroke();
 
-  ctx.font = 'bold 36px sans-serif';
+  ctx.font = `600 ${circleRadius}px "Exo 2"`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
   ctx.fillStyle = `rgba(255,255,255,${opacity})`;
@@ -237,10 +237,10 @@ const drawApproachCircle = (ctx, circle, circleRadius, time, fadeIn, preempt) =>
   const opacity = getOpacity(circle, time, fadeIn, preempt);
   const [x, y] = circle.data.pos;
   const size = Math.max(0, circle.time - time) / preempt;
-  ctx.lineWidth = APPROACH_CIRCLE_WIDTH;
+  ctx.lineWidth = circleRadius * APPROACH_CIRCLE_WIDTH;
   ctx.strokeStyle = `rgba(${COMBO_COLOURS[circle.comboNumber]},${opacity})`;
   ctx.beginPath();
-  ctx.arc(x, y, circleRadius + size * APPROACH_CIRCLE_SIZE, 0, Math.PI * 2);
+  ctx.arc(x, y, circleRadius * (1 + size * APPROACH_CIRCLE_SIZE), 0, Math.PI * 2);
   ctx.stroke();
 };
 
@@ -332,15 +332,15 @@ const getFollowPosition = (object, time) => {
 
 const drawFollowCircle = (ctx, circle, circleRadius, time) => {
   const { x, y } = getFollowPosition(circle, time);
-  const outerSize = (circleRadius - CIRCLE_BORDER_WIDTH / 2);
+  const circleSize = circleRadius * (1 - CIRCLE_BORDER_WIDTH / 2);
   ctx.strokeStyle = `rgba(255,255,255,${1})`;
-  ctx.lineWidth = CIRCLE_BORDER_WIDTH;
+  ctx.lineWidth = circleRadius * CIRCLE_BORDER_WIDTH;
   ctx.beginPath();
-  ctx.arc(x, y, outerSize, 0, Math.PI * 2);
+  ctx.arc(x, y, circleSize, 0, Math.PI * 2);
   ctx.stroke();
   ctx.lineWidth = FOLLOW_CIRCLE_WIDTH;
   ctx.beginPath();
-  ctx.arc(x, y, outerSize * FOLLOW_CIRCLE_FACTOR, 0, Math.PI * 2);
+  ctx.arc(x, y, circleSize * FOLLOW_CIRCLE_FACTOR, 0, Math.PI * 2);
   ctx.stroke();
 };
 
