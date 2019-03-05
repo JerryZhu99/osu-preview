@@ -40,29 +40,7 @@ const isSlider = hitObject => (hitObject.type & 2);
 const isNewCombo = hitObject => (hitObject.type & 4);
 const isSpinner = hitObject => (hitObject.type & 8);
 
-const processHitObjects = (hitObjects, timingPoints, SV) => {
-  let comboNumber = 0;
-  let comboCount = 1;
-  for (let i = 0; i < hitObjects.length; i += 1) {
-    const object = hitObjects[i];
-    comboCount += 1;
-    if (isNewCombo(object)) { // New combo bit
-      comboCount = 1;
-      comboNumber = (comboNumber + 1) % COMBO_COLOURS.length;
-    }
-    object.comboCount = comboCount;
-    object.comboNumber = comboNumber;
-    if (isSlider(object)) {
-      const { ms_per_beat: beatDuration } = timingPoints.find(e => e.time <= object.time);
-      const duration = object.data.distance / (100.0 * SV) * beatDuration;
-      object.duration = duration;
-      object.endTime = object.time + duration;
-    } else {
-      object.endTime = object.time;
-    }
-  }
-};
-
+const clamp = (x, min, max) => Math.min(max, Math.max(min, x));
 
 const lerp = (t, a, b) => (1 - t) * a + t * b;
 
@@ -89,6 +67,118 @@ const bezierAt = (t, points) => {
 };
 
 
+const getFollowPosition = (object, time) => {
+  let [x, y] = object.data.pos;
+  const t = (time - object.time) / object.duration;
+  if (object.data.type === 'L') {
+    const [cx, cy] = object.data.points[0];
+    const dx = cx - x;
+    const dy = cy - y;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    const x2 = x + dx * object.data.distance / length;
+    const y2 = y + dy * object.data.distance / length;
+    x = x * (1 - t) + x2 * t;
+    y = y * (1 - t) + y2 * t;
+  } else if (object.data.type === 'B') {
+    const targetDist = t * object.data.distance;
+    let buffer = [[x, y]];
+    const divisions = Math.min(64, Math.ceil(500 / object.data.points.length));
+    const bezierPoints = [];
+    for (let i = 0; i < object.data.points.length; i += 1) {
+      const cur = object.data.points[i];
+      const [cx, cy] = cur;
+      const [px, py] = buffer[buffer.length - 1];
+      if (cx === px && cy === py) {
+        for (let j = 0; j <= divisions; j += 1) {
+          bezierPoints.push(bezierAt(j / divisions, buffer));
+        }
+        buffer = [[cx, cy]];
+      } else {
+        buffer.push([cx, cy]);
+      }
+    }
+    for (let j = 0; j <= divisions; j += 1) {
+      bezierPoints.push(bezierAt(j / divisions, buffer));
+    }
+
+    let dist = 0;
+    for (let i = 0; i < bezierPoints.length - 1; i += 1) {
+      const [x1, y1] = bezierPoints[i];
+      const [x2, y2] = bezierPoints[i + 1];
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const length = Math.hypot(dx, dy);
+      if (dist + length < targetDist && i !== bezierPoints.length - 2) {
+        x = x2;
+        y = y2;
+        dist += length;
+      } else {
+        const trueLength = targetDist - dist;
+        x = lerp(trueLength / length, x1, x2);
+        y = lerp(trueLength / length, y1, y2);
+        x = x2;
+        y = y2;
+        break;
+      }
+    }
+  } else if (object.data.type === 'P') {
+    const points = object.data.points;
+    // https://stackoverflow.com/q/4103405
+    const A = { x, y };
+    const B = { x: points[0][0], y: points[0][1] };
+    const C = { x: points[1][0], y: points[1][1] };
+    const yDeltaA = B.y - A.y;
+    const xDeltaA = B.x - A.x;
+    const yDeltaB = C.y - B.y;
+    const xDeltaB = C.x - B.x;
+
+    const aSlope = yDeltaA / xDeltaA;
+    const bSlope = yDeltaB / xDeltaB;
+    const centerX = (aSlope * bSlope * (A.y - C.y) + bSlope * (A.x + B.x)
+      - aSlope * (B.x + C.x)) / (2 * (bSlope - aSlope));
+    const centerY = -1 * (centerX - (A.x + B.x) / 2) / aSlope + (A.y + B.y) / 2;
+    const radius = Math.sqrt((centerX - x) * (centerX - x) + (centerY - y) * (centerY - y));
+    const angleA = Math.atan2(A.y - centerY, A.x - centerX);
+    const angleC = Math.atan2(C.y - centerY, C.x - centerX);
+
+    const anticlockwise = (xDeltaB * yDeltaA - xDeltaA * yDeltaB) > 0;
+    const startAngle = angleA;
+    let endAngle = angleC;
+
+    if (!anticlockwise && (endAngle - startAngle) < 0) { endAngle += 2 * Math.PI; }
+    if (anticlockwise && (endAngle - startAngle) > 0) { endAngle -= 2 * Math.PI; }
+    x = centerX + radius * Math.cos(startAngle + (endAngle - startAngle) * t);
+    y = centerY + radius * Math.sin(startAngle + (endAngle - startAngle) * t);
+  }
+  return [x, y];
+};
+
+const processHitObjects = (hitObjects, timingPoints, SV) => {
+  let comboNumber = 0;
+  let comboCount = 1;
+  for (let i = 0; i < hitObjects.length; i += 1) {
+    const object = hitObjects[i];
+    comboCount += 1;
+    if (isNewCombo(object)) { // New combo bit
+      comboCount = 1;
+      comboNumber = (comboNumber + 1) % COMBO_COLOURS.length;
+    }
+    object.comboCount = comboCount;
+    object.comboNumber = comboNumber;
+    if (isSlider(object)) {
+      const { ms_per_beat: beatDuration } = timingPoints.find(e => e.time <= object.time);
+      const duration = object.data.distance / (100.0 * SV) * beatDuration;
+      object.duration = duration;
+      object.endTime = object.time + duration;
+      object.endPos = getFollowPosition(object, object.endTime);
+    } else {
+      object.endTime = object.time;
+      object.endPos = object.data && object.data.pos || [512 / 2, 384 / 2];
+    }
+  }
+};
+
+
 const sliderStroke = (ctx, circleRadius, colour, opacity) => {
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
@@ -105,7 +195,7 @@ const drawLinearSlider = (ctx, circle) => {
   const [cx, cy] = circle.data.points[0];
   const dx = cx - x;
   const dy = cy - y;
-  const length = Math.sqrt(dx * dx + dy * dy);
+  const length = Math.hypot(dx, dy);
   const px = x + dx * circle.data.distance / length;
   const py = y + dy * circle.data.distance / length;
   ctx.beginPath();
@@ -246,94 +336,35 @@ const drawApproachCircle = (ctx, circle, circleRadius, time, fadeIn, preempt) =>
   ctx.stroke();
 };
 
-const getFollowPosition = (object, time) => {
-  let [x, y] = object.data.pos;
-  const t = (time - object.time) / object.duration;
-  if (object.data.type === 'L') {
-    const [cx, cy] = object.data.points[0];
-    const dx = cx - x;
-    const dy = cy - y;
-    const length = Math.sqrt(dx * dx + dy * dy);
-    const x2 = x + dx * object.data.distance / length;
-    const y2 = y + dy * object.data.distance / length;
-    x = x * (1 - t) + x2 * t;
-    y = y * (1 - t) + y2 * t;
-  } else if (object.data.type === 'B') {
-    const targetDist = t * object.data.distance;
-    let buffer = [[x, y]];
-    const divisions = Math.min(64, Math.ceil(500 / object.data.points.length));
-    const bezierPoints = [];
-    for (let i = 0; i < object.data.points.length; i += 1) {
-      const cur = object.data.points[i];
-      const [cx, cy] = cur;
-      const [px, py] = buffer[buffer.length - 1];
-      if (cx === px && cy === py) {
-        for (let j = 0; j <= divisions; j += 1) {
-          bezierPoints.push(bezierAt(j / divisions, buffer));
-        }
-        buffer = [[cx, cy]];
-      } else {
-        buffer.push([cx, cy]);
-      }
-    }
-    for (let j = 0; j <= divisions; j += 1) {
-      bezierPoints.push(bezierAt(j / divisions, buffer));
-    }
+const drawFollowPoint = (ctx, previous, next, circleRadius, time, fadeIn, preempt) => {
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  if (previous.time - preempt <= time && time <= next.time) {
+    const [x1, y1] = previous.endPos;
+    const [x2, y2] = next.data.pos;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 2 * circleRadius) return;
+    const ax = x1 + dx / dist * circleRadius;
+    const ay = y1 + dy / dist * circleRadius;
+    const bx = x2 - dx / dist * circleRadius;
+    const by = y2 - dy / dist * circleRadius;
+    const t = (next.time - time) / (next.time - previous.time);
+    const t2 = clamp(t * 4 - 3, 0, 1);
 
-    let dist = 0;
-    for (let i = 0; i < bezierPoints.length - 1; i += 1) {
-      const [x1, y1] = bezierPoints[i];
-      const [x2, y2] = bezierPoints[i + 1];
-      const dx = x2 - x1;
-      const dy = y2 - y1;
-      const length = Math.hypot(dx, dy);
-      if (dist + length < targetDist && i !== bezierPoints.length - 2) {
-        x = x2;
-        y = y2;
-        dist += length;
-      } else {
-        const trueLength = targetDist - dist;
-        x = lerp(trueLength / length, x1, x2);
-        y = lerp(trueLength / length, y1, y2);
-        x = x2;
-        y = y2;
-        break;
-      }
-    }
-  } else if (object.data.type === 'P') {
-    const points = object.data.points;
-    // https://stackoverflow.com/q/4103405
-    const A = { x, y };
-    const B = { x: points[0][0], y: points[0][1] };
-    const C = { x: points[1][0], y: points[1][1] };
-    const yDeltaA = B.y - A.y;
-    const xDeltaA = B.x - A.x;
-    const yDeltaB = C.y - B.y;
-    const xDeltaB = C.x - B.x;
 
-    const aSlope = yDeltaA / xDeltaA;
-    const bSlope = yDeltaB / xDeltaB;
-    const centerX = (aSlope * bSlope * (A.y - C.y) + bSlope * (A.x + B.x)
-      - aSlope * (B.x + C.x)) / (2 * (bSlope - aSlope));
-    const centerY = -1 * (centerX - (A.x + B.x) / 2) / aSlope + (A.y + B.y) / 2;
-    const radius = Math.sqrt((centerX - x) * (centerX - x) + (centerY - y) * (centerY - y));
-    const angleA = Math.atan2(A.y - centerY, A.x - centerX);
-    const angleC = Math.atan2(C.y - centerY, C.x - centerX);
+    const t1 = clamp((previous.time - time) / (preempt) * 4 - 2, 0, 1);
 
-    const anticlockwise = (xDeltaB * yDeltaA - xDeltaA * yDeltaB) > 0;
-    const startAngle = angleA;
-    let endAngle = angleC;
-
-    if (!anticlockwise && (endAngle - startAngle) < 0) { endAngle += 2 * Math.PI; }
-    if (anticlockwise && (endAngle - startAngle) > 0) { endAngle -= 2 * Math.PI; }
-    x = centerX + radius * Math.cos(startAngle + (endAngle - startAngle) * t);
-    y = centerY + radius * Math.sin(startAngle + (endAngle - startAngle) * t);
+    ctx.beginPath();
+    ctx.moveTo(lerp(t2, bx, ax), lerp(t2, by, ay));
+    ctx.lineTo(lerp(t1, bx, ax), lerp(t1, by, ay));
+    ctx.stroke();
   }
-  return { x, y };
 };
 
 const drawFollowCircle = (ctx, circle, circleRadius, time) => {
-  const { x, y } = getFollowPosition(circle, time);
+  const [x, y] = getFollowPosition(circle, time);
   const circleSize = circleRadius * (1 - CIRCLE_BORDER_WIDTH / 2);
   ctx.strokeStyle = `rgba(255,255,255,${1})`;
   ctx.lineWidth = circleRadius * CIRCLE_BORDER_WIDTH;
@@ -348,7 +379,7 @@ const drawFollowCircle = (ctx, circle, circleRadius, time) => {
 
 const toTimeString = (time) => {
   const seconds = Math.floor(time / 1000) % 60;
-  const minutes = Math.floor(time / 1000 / 60) % 60;
+  const minutes = Math.floor(time / 1000 / 60);
   return `${minutes}:${(`00${seconds}`).substr(-2)}`;
 };
 
@@ -362,9 +393,12 @@ const toTimeString = (time) => {
  */
 const playPreview = (canvasElement, playbackTimeElement, progressElement, beatmap, previewTime) => {
   let mapStartTime = previewTime;
+  let startTime = performance.now();
+
   const ctx = canvasElement.getContext('2d');
   ctx.translate(64, 48);
   const timingPoints = beatmap.timing_points;
+
   processTimingPoints(timingPoints);
 
   const hitObjects = beatmap.objects;
@@ -377,11 +411,11 @@ const playPreview = (canvasElement, playbackTimeElement, progressElement, beatma
 
   processHitObjects(hitObjects, timingPoints, SV);
 
-  let startTime = performance.now();
-
   const lastObject = hitObjects[hitObjects.length - 1];
-  const lastTime = (isSlider(lastObject) ? lastObject.endTime : lastObject.time) + 1000;
-
+  const lastTime = lastObject.endTime + 1000;
+  if (mapStartTime < 0) {
+    mapStartTime = (lastObject.endTime) * 0.42;
+  }
   let seeking = false;
 
   const animate = (currentTime) => {
@@ -400,7 +434,12 @@ const playPreview = (canvasElement, playbackTimeElement, progressElement, beatma
         return true;
       })
       .reverse()
-      .forEach((object) => {
+      .forEach((object, idx, arr) => {
+        const previousObject = arr[idx + 1];
+        if (previousObject) {
+          drawFollowPoint(ctx, previousObject, object, radius, time, fadeIn, preempt);
+        }
+
         if (isSlider(object)) {
           drawSliderBody(ctx, object, radius, time, fadeIn, preempt);
         }
