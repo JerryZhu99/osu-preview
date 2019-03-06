@@ -71,7 +71,10 @@ const bezierAt = (t, points) => {
 
 const getFollowPosition = (object, time) => {
   let [x, y] = object.data.pos;
-  const t = (time - object.time) / object.duration;
+  const relativeTime = (time - object.time) % (object.duration * 2);
+  const t = relativeTime < object.duration ?
+    relativeTime / object.duration :
+    2 - (relativeTime / object.duration);
   if (object.data.type === 'L') {
     const [cx, cy] = object.data.points[0];
     const dx = cx - x;
@@ -170,8 +173,9 @@ const processHitObjects = (hitObjects, timingPoints, SV) => {
     if (isSlider(object)) {
       const { ms_per_beat: beatDuration } = timingPoints.find(e => e.time <= object.time);
       const duration = object.data.distance / (100.0 * SV) * beatDuration;
+      const { repetitions } = object.data;
       object.duration = duration;
-      object.endTime = object.time + duration;
+      object.endTime = object.time + duration * repetitions;
       object.endPos = getFollowPosition(object, object.endTime);
     } else if (isSpinner(object)) {
       object.endTime = object.data.endTime;
