@@ -356,6 +356,7 @@ const drawApproachCircle = (ctx, circle, circleRadius, time, fadeIn, preempt) =>
 };
 
 const drawFollowPoint = (ctx, previous, next, circleRadius, time, fadeIn, preempt) => {
+  if (previous.comboNumber !== next.comboNumber) return;
   ctx.lineWidth = 3;
   ctx.strokeStyle = 'rgba(255,255,255,0.5)';
   if (previous.time - preempt <= time && time <= next.time) {
@@ -431,7 +432,7 @@ const playPreview = (canvasElement, playbackTimeElement, progressElement, beatma
   processHitObjects(hitObjects, timingPoints, SV);
 
   const lastObject = hitObjects[hitObjects.length - 1];
-  const lastTime = lastObject.endTime + 1000;
+  const lastTime = lastObject.endTime;
   if (mapStartTime < 0) {
     mapStartTime = (lastObject.endTime) * 0.42;
   }
