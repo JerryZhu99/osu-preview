@@ -709,6 +709,9 @@ if (typeof exports !== "undefined") {
       }
     } else if ((obj.type & osu.objtypes.spinner) != 0) {
       ++this.map.nspinners;
+      obj.data = {
+        endTime: parseInt(this._setpos(s[5])),
+      }
     } else if ((obj.type & osu.objtypes.slider) != 0) {
       if (s.length < 8) {
         this._warn("ignoring malformed slider");

@@ -5,6 +5,8 @@ const APPROACH_CIRCLE_WIDTH = 0.09;
 const APPROACH_CIRCLE_SIZE = 4;
 const FOLLOW_CIRCLE_FACTOR = 2;
 const FOLLOW_CIRCLE_WIDTH = 3;
+const SPINNER_SIZE = 180;
+const SPINNER_CENTER_SIZE = 10;
 const COMBO_COLOURS = ['0,202,0', '18,124,255', '242,24,57', '255,192,0'];
 
 
@@ -171,9 +173,12 @@ const processHitObjects = (hitObjects, timingPoints, SV) => {
       object.duration = duration;
       object.endTime = object.time + duration;
       object.endPos = getFollowPosition(object, object.endTime);
+    } else if (isSpinner(object)) {
+      object.endTime = object.data.endTime;
+      object.endPos = [512 / 2, 384 / 2];
     } else {
       object.endTime = object.time;
-      object.endPos = object.data && object.data.pos || [512 / 2, 384 / 2];
+      object.endPos = object.data.pos;
     }
   }
 };
@@ -325,6 +330,20 @@ const drawHitCircle = (ctx, circle, circleRadius, time, fadeIn, preempt) => {
   ctx.fillText(circle.comboCount, x, y);
 };
 
+const drawSpinner = (ctx, circle, circleRadius, time, fadeIn, preempt) => {
+  const opacity = getOpacity(circle, time, fadeIn, preempt);
+  const scale = clamp((circle.endTime - time) / (circle.endTime - circle.time), 0, 1);
+  const [x, y] = circle.endPos;
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
+  ctx.beginPath();
+  ctx.arc(x, y, SPINNER_SIZE * scale, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x, y, SPINNER_CENTER_SIZE, 0, Math.PI * 2);
+  ctx.stroke();
+};
+
 const drawApproachCircle = (ctx, circle, circleRadius, time, fadeIn, preempt) => {
   const opacity = getOpacity(circle, time, fadeIn, preempt);
   const [x, y] = circle.data.pos;
@@ -428,15 +447,13 @@ const playPreview = (canvasElement, playbackTimeElement, progressElement, beatma
     hitObjects
       .filter((object) => {
         if (time < object.time - preempt) return false;
-        // is a spinner
-        if (isSpinner(object)) return false;
         if (time > object.endTime + CIRCLE_HIT_DURATION) return false;
         return true;
       })
       .reverse()
       .forEach((object, idx, arr) => {
         const previousObject = arr[idx + 1];
-        if (previousObject) {
+        if (previousObject && !isSpinner(previousObject) && !isSpinner(object)) {
           drawFollowPoint(ctx, previousObject, object, radius, time, fadeIn, preempt);
         }
 
@@ -444,11 +461,13 @@ const playPreview = (canvasElement, playbackTimeElement, progressElement, beatma
           drawSliderBody(ctx, object, radius, time, fadeIn, preempt);
         }
 
-        if (time <= object.time || isCircle(object)) {
+        if (isCircle(object) || (isSlider(object) && time <= object.time)) {
           drawHitCircle(ctx, object, radius, time, fadeIn, preempt);
         }
 
-        if (time <= object.time) {
+        if (isSpinner(object)) {
+          drawSpinner(ctx, object, radius, time, fadeIn, preempt);
+        } else if (time <= object.time) {
           drawApproachCircle(ctx, object, radius, time, fadeIn, preempt);
         } else if (isSlider(object) && time <= object.endTime) {
           drawFollowCircle(ctx, object, radius, time);
