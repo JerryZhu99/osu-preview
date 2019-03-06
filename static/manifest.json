@@ -1,8 +1,8 @@
 {
   "manifest_version": 2,
   "name": "osu! preview",
-  "description": "Preview an beatmap in your browser.",
-  "version": "0.0.1",
+  "description": "Preview an osu! beatmap in your browser.",
+  "version": "0.0.2",
   "icons": {
     "48": "icon48.png",
     "128": "icon128.png"
