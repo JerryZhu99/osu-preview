@@ -43,7 +43,7 @@
   "author": "Jerry Zhu",
   "license": "MIT",
   "devDependencies": {
-    "bestzip": "^2.1.2",
+    "bestzip": "^2.1.7",
     "file-loader": "^2.0.0",
     "run-script-os": "^1.0.5",
     "webpack-cli": "^3.1.1"
