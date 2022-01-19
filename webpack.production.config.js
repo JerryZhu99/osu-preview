@@ -1,6 +1,5 @@
 const webpack = require('webpack');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
-const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const path = require('path');
 
 module.exports = {
@@ -33,7 +32,11 @@ module.exports = {
         },
       },
       {
-        test: /\.s[ac]ss$/, use: ExtractTextPlugin.extract('css-loader!sass-loader'),
+        test: /\.s[ac]ss$/,  use: [
+          "style-loader",
+          "css-loader",
+          "sass-loader",
+        ],
       },
       {
         test: /\.(png|svg|woff2|ttf)$/,
@@ -43,9 +46,7 @@ module.exports = {
   },
 
   plugins: [
-    new ExtractTextPlugin('[name].css'),
-
-    new CopyWebpackPlugin([{
+    new CopyWebpackPlugin({ patterns: [{
       context: './static/',
       from: '**/*',
       to: './',
@@ -53,7 +54,7 @@ module.exports = {
       context: './assets/',
       from: '**/*',
       to: './assets',
-    }]),
+    }]}),
 
     new webpack.DefinePlugin({
       __DEV__: false,

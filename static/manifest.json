@@ -28,7 +28,6 @@
   },
   "permissions": [
     "tabs",
-    "storage",
     "https://*.ppy.sh/",
     "http://*.ppy.sh/"
   ],

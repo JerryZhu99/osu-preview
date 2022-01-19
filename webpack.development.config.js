@@ -46,7 +46,7 @@ module.exports = {
   devtool: 'inline-cheap-source-map',
 
   plugins: [
-    new CopyWebpackPlugin([{
+    new CopyWebpackPlugin({ patterns: [{
       context: './static/',
       from: '**/*',
       to: './',
@@ -54,7 +54,7 @@ module.exports = {
       context: './assets/',
       from: '**/*',
       to: './assets',
-    }]),
+    }]}),
 
     new webpack.DefinePlugin({
       __DEV__: true,
