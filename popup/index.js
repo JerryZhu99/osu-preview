@@ -82,7 +82,7 @@ const getPageInfo = (url, tabId) => new Promise((resolve, reject) => {
     }
 
     info.beatmapSetId = match[3];
-    info.beatmapId = beatmapId.substr(5);
+    info.beatmapId = beatmapId;
 
     resolve(info);
   } else {
@@ -121,8 +121,9 @@ const processBeatmap = (rawBeatmap) => {
 
   // Support old beatmaps
   cleanBeatmap.mode = Number(cleanBeatmap.mode || 0);
-
-  if (cleanBeatmap.mode !== 0) {
+ 
+  const supportedGamemodes = [0];
+  if (!supportedGamemodes.includes(cleanBeatmap.mode)) {
     throw Error(UNSUPPORTED_GAMEMODE);
   }
 };
