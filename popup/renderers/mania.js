@@ -12,6 +12,37 @@ const X_CENTER = 512 / 2;
 
 const LANE_SPACING = 1;
 
+const COLOUR_1 = '#ffffff';
+const COLOUR_2 = '#dc8dba';
+const COLOUR_S = '#d5bc00';
+
+const LANE_COLOURS = [
+  [],
+  [COLOUR_S],
+  [COLOUR_1, COLOUR_1],
+  [COLOUR_1, COLOUR_S, COLOUR_1],
+  [COLOUR_1, COLOUR_2, COLOUR_2, COLOUR_1],
+  [COLOUR_1, COLOUR_2, COLOUR_S, COLOUR_2, COLOUR_1],
+  [COLOUR_1, COLOUR_2, COLOUR_1, COLOUR_1, COLOUR_2, COLOUR_1],
+  [COLOUR_1, COLOUR_2, COLOUR_1, COLOUR_S, COLOUR_1, COLOUR_2, COLOUR_1],
+  [COLOUR_S, COLOUR_1, COLOUR_2, COLOUR_1, COLOUR_S, COLOUR_1, COLOUR_2, COLOUR_1],
+  [COLOUR_1, COLOUR_2, COLOUR_1, COLOUR_2, COLOUR_S, COLOUR_2, COLOUR_1, COLOUR_2, COLOUR_1],
+  // Co-op
+  [COLOUR_1, COLOUR_2, COLOUR_S, COLOUR_2, COLOUR_1, 
+   COLOUR_1, COLOUR_2, COLOUR_S, COLOUR_2, COLOUR_1],
+  [],
+  [COLOUR_1, COLOUR_2, COLOUR_1, COLOUR_1, COLOUR_2, COLOUR_1, 
+   COLOUR_1, COLOUR_2, COLOUR_1, COLOUR_1, COLOUR_2, COLOUR_1],
+  [],
+  [COLOUR_1, COLOUR_2, COLOUR_1, COLOUR_S, COLOUR_1, COLOUR_2, COLOUR_1,
+   COLOUR_1, COLOUR_2, COLOUR_1, COLOUR_S, COLOUR_1, COLOUR_2, COLOUR_1],
+  [],
+  [COLOUR_S, COLOUR_1, COLOUR_2, COLOUR_1, COLOUR_S, COLOUR_1, COLOUR_2, COLOUR_1,
+   COLOUR_1, COLOUR_2, COLOUR_1, COLOUR_S, COLOUR_1, COLOUR_2, COLOUR_1, COLOUR_S],
+  [],
+  [COLOUR_1, COLOUR_2, COLOUR_1, COLOUR_2, COLOUR_S, COLOUR_2, COLOUR_1, COLOUR_2, COLOUR_1,
+   COLOUR_1, COLOUR_2, COLOUR_1, COLOUR_2, COLOUR_S, COLOUR_2, COLOUR_1, COLOUR_2, COLOUR_1],
+]
 
 
 const getMainBPM = (timingPoints, hitObjects) => {
@@ -52,9 +83,10 @@ const drawHoldNote = (ctx, object, keyCount, time) => {
 
     if (yOffset < -NOTE_HEIGHT - 64) return;
 
-    ctx.fillStyle = 'grey';
+    const colour = LANE_COLOURS[keyCount][lane] || COLOUR_1;
+    ctx.fillStyle = `${colour}7f`
     ctx.fillRect(xOffset + LANE_SPACING, yOffset, LANE_WIDTH - 2 * LANE_SPACING, -height);
-    ctx.fillStyle = 'white';
+    ctx.fillStyle = colour;
     ctx.fillRect(xOffset + LANE_SPACING, yOffset, LANE_WIDTH - 2 * LANE_SPACING, -NOTE_HEIGHT);
 
 }
@@ -68,7 +100,7 @@ const drawNote = (ctx, object, keyCount, time) => {
 
     if (yOffset < -NOTE_HEIGHT - 64) return;
 
-    ctx.fillStyle = 'white';
+    ctx.fillStyle = LANE_COLOURS[keyCount][lane] || COLOUR_1;
     ctx.fillRect(xOffset + LANE_SPACING, yOffset, LANE_WIDTH - 2 * LANE_SPACING, -NOTE_HEIGHT);
 }
 
