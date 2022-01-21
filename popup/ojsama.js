@@ -281,6 +281,7 @@ if (typeof exports !== "undefined") {
     circle: 1 << 0,
     slider: 1 << 1,
     spinner: 1 << 3,
+    hold: 1 << 7,
   };
 
   // all we need from circles is their position. all positions
@@ -732,6 +733,15 @@ if (typeof exports !== "undefined") {
         isNaN(d.repetitions) || isNaN(d.distance)) {
         this._warn("ignoring malformed slider");
         return;
+      }
+    } else if ((obj.type & osu.objtypes.hold) != 0) {
+      ++this.map.nhold;
+      obj.data = {
+        pos: [
+          parseFloat(this._setpos(s[0])),
+          parseFloat(this._setpos(s[1])),
+        ],
+        endTime: parseInt(this._setpos(s[5].split(':')[0])),
       }
     }
     this.map.objects.push(obj);

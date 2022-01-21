@@ -1,3 +1,5 @@
+import { isCircle, isNewCombo, isSlider, isSpinner } from './utils'
+
 const CIRCLE_BORDER_WIDTH = 0.15;
 const CIRCLE_HIT_FACTOR = 1.33;
 const CIRCLE_HIT_DURATION = 150;
@@ -35,11 +37,6 @@ const processTimingPoints = (timingPoints) => {
     AR <= 5 ?
       800 + 400 * (5 - AR) / 5 :
       800 - 500 * (AR - 5) / 5);
-
-const isCircle = hitObject => (hitObject.type & 1);
-const isSlider = hitObject => (hitObject.type & 2);
-const isNewCombo = hitObject => (hitObject.type & 4);
-const isSpinner = hitObject => (hitObject.type & 8);
 
 const clamp = (x, min, max) => Math.min(max, Math.max(min, x));
 
@@ -155,35 +152,6 @@ const getFollowPosition = (object, time) => {
     y = centerY + radius * Math.sin(startAngle + (endAngle - startAngle) * t);
   }
   return [x, y];
-};
-
-const processHitObjects = (hitObjects, timingPoints, SV) => {
-  let comboNumber = 0;
-  let comboCount = 1;
-  for (let i = 0; i < hitObjects.length; i += 1) {
-    const object = hitObjects[i];
-    comboCount += 1;
-    if (isNewCombo(object)) { // New combo bit
-      comboCount = 1;
-      comboNumber = (comboNumber + 1) % COMBO_COLOURS.length;
-    }
-    object.comboCount = comboCount;
-    object.comboNumber = comboNumber;
-    if (isSlider(object)) {
-      const { ms_per_beat: beatDuration } = timingPoints.find(e => e.time <= object.time);
-      const duration = object.data.distance / (100.0 * SV) * beatDuration;
-      const { repetitions } = object.data;
-      object.duration = duration;
-      object.endTime = object.time + duration * repetitions;
-      object.endPos = getFollowPosition(object, object.endTime);
-    } else if (isSpinner(object)) {
-      object.endTime = object.data.endTime;
-      object.endPos = [512 / 2, 384 / 2];
-    } else {
-      object.endTime = object.time;
-      object.endPos = object.data.pos;
-    }
-  }
 };
 
 
@@ -416,7 +384,21 @@ export default class OsuRenderer {
         this.preempt = calculatePreempt(AR);
         this.fadeIn = calculateFadeIn(AR);
       
-        processHitObjects(this.hitObjects, timingPoints, SV);
+        let comboNumber = 0;
+        let comboCount = 1;
+        for (let i = 0; i < this.hitObjects.length; i += 1) {
+          const object = this.hitObjects[i];
+          comboCount += 1;
+          if (isNewCombo(object)) { // New combo bit
+            comboCount = 1;
+            comboNumber = (comboNumber + 1) % COMBO_COLOURS.length;
+          }
+          object.comboCount = comboCount;
+          object.comboNumber = comboNumber;
+          if (isSlider(object)) {
+            object.endPos = getFollowPosition(object, object.endTime);
+          }
+        }
     }
 
     render(time) {

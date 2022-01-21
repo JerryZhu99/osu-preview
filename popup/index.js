@@ -122,7 +122,7 @@ const processBeatmap = (rawBeatmap) => {
   // Support old beatmaps
   cleanBeatmap.mode = Number(cleanBeatmap.mode || 0);
  
-  const supportedGamemodes = [0];
+  const supportedGamemodes = [0, 3];
   if (!supportedGamemodes.includes(cleanBeatmap.mode)) {
     throw Error(UNSUPPORTED_GAMEMODE);
   }
