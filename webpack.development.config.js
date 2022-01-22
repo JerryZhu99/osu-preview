@@ -1,5 +1,6 @@
 const webpack = require('webpack');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const path = require('path');
 
 module.exports = {
@@ -33,7 +34,14 @@ module.exports = {
       },
       {
         test: /\.s(a|c)ss$/,
-        use: ['style-loader', 'css-loader', 'sass-loader'],
+        use: [ 
+          MiniCssExtractPlugin.loader, 
+          {
+            loader:'css-loader',
+            options: { url: false },
+          }, 
+          'sass-loader'
+        ],
       },
       {
         test: /\.(png|svg|woff2|ttf)$/,
@@ -59,6 +67,10 @@ module.exports = {
       __DEV__: true,
       __CHROME__: JSON.stringify(JSON.parse(process.env.BUILD_CHROME || true)),
       __FIREFOX__: JSON.stringify(JSON.parse(process.env.BUILD_FF || false)),
+    }),
+
+    new MiniCssExtractPlugin({
+      filename: "[name].css",
     }),
   ],
 
