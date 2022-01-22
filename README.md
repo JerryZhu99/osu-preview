@@ -8,10 +8,10 @@ Current versions of software used:
 
 ```shell
 $ node -v
-v10.8.0
+v17.3.0
 
 $ npm -v
-6.4.0
+8.3.0
 ```
 
 Everything should work with older versions of both Node and NPM.

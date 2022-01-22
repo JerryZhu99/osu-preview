@@ -31,7 +31,7 @@
     "clean:win32": "rmdir /s /q build 2>nul & exit 0",
     "build": "npm run clean && cross-env NODE_ENV=production webpack --config webpack.production.config.js",
     "build:chrome": "cross-env BUILD_CHROME=1 npm run build && bestzip osu-preview-chrome.zip build/* && npm run clean",
-    "build:firefox": "cross-env BUILD_FF=1 npm run build && bestzip osu-preview-firefox.zip build/* && npm run clean",
+    "build:firefox": "cross-env BUILD_FF=1 npm run build && cd build/ && bestzip ../osu-preview-firefox.zip * && cd ../ && npm run clean",
     "build:all": "rm -f osu-preview-chrome.zip osu-preview-firefox.zip && npm run build:chrome && npm run build:firefox",
     "lint": "eslint --fix ."
   },
