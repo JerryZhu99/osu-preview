@@ -2,6 +2,10 @@
 
 osu! preview is a browser extension that lets you preview the gameplay of a beatmap.
 
+[Firefox Extension](https://addons.mozilla.org/en-CA/firefox/addon/osu-preview/)
+
+[Chrome Extension](https://chrome.google.com/webstore/detail/osu-preview/higcadegkhhhjcljhpggammlhmlbdcmc?hl=en&authuser=0)
+
 ## Prerequisities
 
 Current versions of software used:
